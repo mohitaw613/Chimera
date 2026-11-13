@@ -23,6 +23,7 @@ import {
   Server,
   ChevronRight,
   FileCode,
+  Target,
 } from 'lucide-react';
 import { api } from '../api/client';
 import {
@@ -34,7 +35,7 @@ import {
   EdgeDetail,
 } from '../types';
 import { EdgeEvidencePanel } from '../components/EdgeEvidencePanel';
-import { NODE_ICONS, formatNodeLabel } from '../utils/graphVisuals';
+import { formatNodeLabel, formatEdgeLabel } from '../utils/graphVisuals';
 
 // Register dagre layout
 try {
@@ -210,37 +211,26 @@ export const Dashboard: React.FC = () => {
       const formatted = formatNodeLabel(node.data.id, node.data.label);
       const isPrivilegeChange = formatted.type === 'alert';
 
-      const icon = isPrivilegeChange
-        ? NODE_ICONS.alert
-        : formatted.type === 'user'
-        ? NODE_ICONS.user
-        : formatted.type === 'service'
-        ? NODE_ICONS.service
-        : formatted.type === 'external'
-        ? NODE_ICONS.external
-        : formatted.type === 'database'
-        ? NODE_ICONS.database
-        : NODE_ICONS.device;
-
       elements.push({
         data: {
           id: node.data.id,
           displayLabel: formatted.full,
           type: formatted.type,
           isAlert: isPrivilegeChange,
-          icon: icon,
+          icon: formatted.icon,
         },
       });
     });
 
     targetEdges.forEach((edge) => {
       const status = edge.data.status || 'observed';
+      const cleanLabel = formatEdgeLabel(edge.data.label || '', edge.data.target);
       elements.push({
         data: {
           id: edge.data.id,
           source: edge.data.source,
           target: edge.data.target,
-          label: edge.data.label || '',
+          label: cleanLabel,
           status: status,
         },
       });
@@ -257,18 +247,19 @@ export const Dashboard: React.FC = () => {
           style: {
             'label': 'data(displayLabel)',
             'text-wrap': 'wrap',
-            'text-max-width': '110px',
-            'color': '#cbd5e1',
+            'text-max-width': '120px',
+            'color': '#f8fafc',
             'font-size': '10px',
-            'font-family': 'Inter, sans-serif',
+            'font-family': '"JetBrains Mono", monospace',
             'font-weight': 600,
             'text-valign': 'bottom',
-            'text-margin-y': 7,
-            'background-color': '#131d31',
-            'border-width': 2,
+            'text-margin-y': 8,
+            'background-color': '#0e172a',
+            'border-width': 2.5,
             'border-color': '#3b82f6',
-            'width': 48,
-            'height': 48,
+            'width': 50,
+            'height': 50,
+            'shape': 'ellipse',
             'background-image': 'data(icon)',
             'background-fit': 'contain',
             'background-clip': 'none',
@@ -281,47 +272,44 @@ export const Dashboard: React.FC = () => {
         {
           selector: 'node[type = "user"]',
           style: {
-            'background-color': '#172554',
+            'background-color': '#0c162c',
             'border-color': '#3b82f6',
-            'shape': 'ellipse',
+            'border-width': 2.5,
           },
         },
         {
           selector: 'node[type = "device"]',
           style: {
-            'background-color': '#0f172a',
-            'border-color': '#0284c7',
-            'shape': 'round-rectangle',
+            'background-color': '#16122a',
+            'border-color': '#8b5cf6',
+            'border-width': 2.5,
           },
         },
         {
           selector: 'node[type = "service"]',
           style: {
-            'background-color': '#082f49',
-            'border-color': '#06b6d4',
-            'shape': 'round-rectangle',
+            'background-color': '#0a1d18',
+            'border-color': '#10b981',
+            'border-width': 2.5,
           },
         },
         {
-          selector: 'node[type = "external"], node[type = "ip"]',
+          selector: 'node[type = "suspicious"], node[type = "alert"]',
           style: {
-            'background-color': '#1e293b',
-            'border-color': '#38bdf8',
-            'shape': 'ellipse',
-          },
-        },
-        {
-          selector: 'node[?isAlert]',
-          style: {
-            'background-color': '#7f1d1d',
+            'background-color': '#2a0e14',
             'border-color': '#ef4444',
             'border-width': 3,
-            'color': '#fca5a5',
+            'width': 54,
+            'height': 54,
+          },
+        },
+        {
+          selector: 'node[id $= "ws-207"], node[id $= "WS-207"]',
+          style: {
+            'border-color': '#38bdf8',
+            'border-width': 3.5,
             'width': 58,
             'height': 58,
-            'shape': 'ellipse',
-            'background-width': '26px',
-            'background-height': '26px',
           },
         },
         {
@@ -330,15 +318,16 @@ export const Dashboard: React.FC = () => {
             'width': 2,
             'curve-style': 'bezier',
             'target-arrow-shape': 'triangle',
-            'arrow-scale': 0.8,
+            'arrow-scale': 1.0,
             'line-color': '#3b82f6',
             'target-arrow-color': '#3b82f6',
             'label': 'data(label)',
-            'font-size': '9px',
-            'font-family': 'JetBrains Mono, monospace',
+            'font-size': '10px',
+            'font-family': '"IBM Plex Sans", sans-serif',
+            'font-weight': 500,
             'text-rotation': 'autorotate',
-            'text-background-opacity': 0.85,
-            'text-background-color': '#080c15',
+            'text-background-opacity': 0.9,
+            'text-background-color': '#080b11',
             'text-background-padding': '3px',
             'text-background-shape': 'roundrectangle',
             'color': '#94a3b8',
@@ -356,15 +345,13 @@ export const Dashboard: React.FC = () => {
           style: {
             'line-style': 'dashed',
             'line-dash-pattern': [6, 4],
-            'line-color': '#0284c7',
-            'target-arrow-color': '#0284c7',
+            'line-color': '#38bdf8',
+            'target-arrow-color': '#38bdf8',
           },
         },
         {
-          selector: 'edge[status = "needs_verification"], edge[status = "suspicious"]',
+          selector: 'edge[label *= "Privilege"], edge[target *= "203."], edge[status = "needs_verification"], edge[status = "suspicious"]',
           style: {
-            'line-style': 'dashed',
-            'line-dash-pattern': [4, 4],
             'line-color': '#ef4444',
             'target-arrow-color': '#ef4444',
             'color': '#fca5a5',
@@ -413,6 +400,18 @@ export const Dashboard: React.FC = () => {
       cy.destroy();
     };
   }, [graphData, activeCase, graphViewMode]);
+
+  const fitView = () => {
+    cyRef.current?.fit(undefined, 35);
+  };
+
+  const zoomIn = () => {
+    cyRef.current?.zoom(cyRef.current.zoom() * 1.25);
+  };
+
+  const zoomOut = () => {
+    cyRef.current?.zoom(cyRef.current.zoom() * 0.8);
+  };
 
   // Leading hypothesis and suspicion score calculation
   const leadingHypothesis = hypothesesData?.hypotheses?.find((h) => h.status === 'leading') || hypothesesData?.hypotheses?.[0];
@@ -651,8 +650,8 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-8 space-y-6">
           {/* Attack Graph Card */}
           <div className="card-glow rounded-2xl p-5 relative overflow-hidden flex flex-col h-[460px]">
-            {/* Graph Card Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-cyber-800/80 z-10">
+            {/* Graph Card Header matching the reference screenshot */}
+            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-cyber-800/80 z-10 gap-3">
               <div className="flex items-center space-x-2.5">
                 <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
                   <Share2 className="w-4 h-4" />
@@ -660,44 +659,87 @@ export const Dashboard: React.FC = () => {
                 <h2 className="text-sm font-bold text-white tracking-tight">Attack Graph</h2>
               </div>
 
-              {/* Segmented Controls & Actions */}
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center p-1 bg-cyber-950 rounded-xl border border-cyber-800 text-xs">
+              {/* Tools & Legend matching reference */}
+              <div className="flex items-center space-x-3 text-xs">
+                {/* Mode Selector */}
+                <div className="flex items-center p-0.5 bg-cyber-950 rounded-xl border border-cyber-800 text-xs">
                   <button
                     onClick={() => setGraphViewMode('overview')}
-                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                      graphViewMode === 'overview'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      graphViewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     Overview
                   </button>
                   <button
                     onClick={() => setGraphViewMode('focus')}
-                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                      graphViewMode === 'focus'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      graphViewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     Focus
                   </button>
                   <button
                     onClick={() => setGraphViewMode('explore')}
-                    className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                      graphViewMode === 'explore'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      graphViewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     Explore
                   </button>
                 </div>
 
+                {/* Fit View Button */}
+                <button
+                  onClick={fitView}
+                  className="px-3 py-1.5 rounded-xl bg-cyber-950 border border-cyber-800 text-slate-300 hover:text-white flex items-center space-x-1.5 transition-colors font-medium shadow-sm"
+                >
+                  <Target className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Fit View</span>
+                </button>
+
+                {/* Zoom Group */}
+                <div className="flex items-center bg-cyber-950 rounded-xl border border-cyber-800 p-0.5">
+                  <button
+                    onClick={zoomOut}
+                    className="px-2 py-1 text-slate-400 hover:text-white text-xs font-mono transition-colors"
+                    title="Zoom Out"
+                  >
+                    - Zoom
+                  </button>
+                  <span className="text-slate-700">|</span>
+                  <button
+                    onClick={zoomIn}
+                    className="px-2 py-1 text-slate-400 hover:text-white text-xs font-mono transition-colors"
+                    title="Zoom In"
+                  >
+                    Zoom +
+                  </button>
+                </div>
+
+                {/* Legend dots */}
+                <div className="hidden sm:flex items-center space-x-3.5 px-3 py-1.5 bg-cyber-950/80 rounded-xl border border-cyber-800 text-[11px] font-medium text-slate-300">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <span>User</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                    <span>Device</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Service</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>Suspicious</span>
+                  </div>
+                </div>
+
                 <Link
                   to={`/investigations/${activeCase?.id || 'inv_synth_001'}/graph`}
-                  className="p-1.5 rounded-lg bg-cyber-800 text-slate-400 hover:text-white transition-colors"
+                  className="p-1.5 rounded-xl bg-cyber-800 text-slate-400 hover:text-white transition-colors"
                   title="Expand to Fullscreen Graph"
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
@@ -708,22 +750,6 @@ export const Dashboard: React.FC = () => {
             {/* Cytoscape Radar Canvas */}
             <div className="relative flex-1 w-full h-full radar-grid overflow-hidden">
               <div ref={containerRef} className="w-full h-full absolute inset-0" />
-
-              {/* Minimal Legend in Bottom Right */}
-              <div className="absolute bottom-3 right-3 bg-cyber-950/90 border border-cyber-800 rounded-xl p-2.5 backdrop-blur-md text-[11px] space-y-1.5 shadow-lg pointer-events-none z-10">
-                <div className="flex items-center space-x-2">
-                  <span className="w-3.5 h-0.5 bg-blue-500 rounded-full inline-block"></span>
-                  <span className="text-slate-300 font-medium">Observed</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3.5 border-b border-dashed border-sky-400 inline-block"></span>
-                  <span className="text-slate-400 font-medium">Inferred</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-3.5 border-b border-dashed border-rose-500 inline-block"></span>
-                  <span className="text-rose-400 font-medium">Suspicious</span>
-                </div>
-              </div>
             </div>
           </div>
 

@@ -8,31 +8,31 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Epistemic & Security Status Colors
-        epistemic: {
-          observed: '#10b981',       // emerald-500
-          inferred: '#3b82f6',       // blue-500
-          unverified: '#f43f5e',     // rose-500
-          suspicious: '#ef4444',     // red-500
+        // Technical Cyber Palette
+        node: {
+          user: '#3b82f6',          // User (Blue)
+          device: '#8b5cf6',        // Device (Purple)
+          service: '#10b981',       // Service (Teal/Emerald)
+          suspicious: '#ef4444',    // Suspicious (Red)
         },
-        // Cyber investigation palette (deep dark navy theme matching the design)
         cyber: {
-          950: '#080c15',            // base dark background
-          900: '#0c1220',            // sidebar / topbar
-          850: '#11192c',            // cards background
-          800: '#18233c',            // card borders / dividers
-          750: '#1f2d4d',            // hover states
-          700: '#2a3c63',            // borders on focus
-          600: '#3d5485',            // subtle text
-          500: '#5c78b0',            // secondary text
-          blue: '#2563eb',
-          cyan: '#06b6d4',
-          accent: '#3b82f6',
+          950: '#080b11',           // Base deep void
+          900: '#0c121e',           // Sidebar / Topbar
+          850: '#0e1422',           // Card container
+          800: '#18233a',           // Card borders
+          750: '#1f2d4a',           // Subtle borders / dividers
+          700: '#28395d',           // Hover & active
+          600: '#425a8c',           // Muted text
+          500: '#647ea8',           // Secondary text
+          blue: '#3b82f6',
+          purple: '#8b5cf6',
+          emerald: '#10b981',
+          red: '#ef4444',
         }
       },
       fontFamily: {
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['"IBM Plex Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'Fira Code', 'monospace'],
       },
       boxShadow: {
         'glow-blue': '0 0 20px -3px rgba(59, 130, 246, 0.25)',

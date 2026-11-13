@@ -16,7 +16,7 @@ import {
 import { api } from '../api/client';
 import { EdgeDetail, GraphResponse } from '../types';
 import { EdgeEvidencePanel } from '../components/EdgeEvidencePanel';
-import { NODE_ICONS, formatNodeLabel } from '../utils/graphVisuals';
+import { formatNodeLabel, formatEdgeLabel } from '../utils/graphVisuals';
 
 // Register dagre layout
 try {
@@ -100,25 +100,13 @@ export const GraphPage: React.FC = () => {
       const formatted = formatNodeLabel(node.data.id, node.data.label);
       const isPrivilegeChange = formatted.type === 'alert';
 
-      const icon = isPrivilegeChange
-        ? NODE_ICONS.alert
-        : formatted.type === 'user'
-        ? NODE_ICONS.user
-        : formatted.type === 'service'
-        ? NODE_ICONS.service
-        : formatted.type === 'external'
-        ? NODE_ICONS.external
-        : formatted.type === 'database'
-        ? NODE_ICONS.database
-        : NODE_ICONS.device;
-
       elements.push({
         data: {
           id: node.data.id,
           displayLabel: formatted.full,
           type: formatted.type,
           isAlert: isPrivilegeChange,
-          icon: icon,
+          icon: formatted.icon,
         },
       });
     });
@@ -129,12 +117,14 @@ export const GraphPage: React.FC = () => {
       if (activeFilter === 'inferred' && status !== 'inferred') return;
       if (activeFilter === 'suspicious' && status === 'observed') return;
 
+      const cleanLabel = formatEdgeLabel(edge.data.label || '', edge.data.target);
+
       elements.push({
         data: {
           id: edge.data.id,
           source: edge.data.source,
           target: edge.data.target,
-          label: edge.data.label || '',
+          label: cleanLabel,
           status: status,
         },
       });
@@ -152,17 +142,18 @@ export const GraphPage: React.FC = () => {
             'label': 'data(displayLabel)',
             'text-wrap': 'wrap',
             'text-max-width': '120px',
-            'color': '#cbd5e1',
+            'color': '#f8fafc',
             'font-size': '10px',
-            'font-family': 'Inter, sans-serif',
+            'font-family': '"JetBrains Mono", monospace',
             'font-weight': 600,
             'text-valign': 'bottom',
             'text-margin-y': 8,
-            'background-color': '#11192c',
-            'border-width': 2,
+            'background-color': '#0e172a',
+            'border-width': 2.5,
             'border-color': '#3b82f6',
-            'width': 48,
-            'height': 48,
+            'width': 50,
+            'height': 50,
+            'shape': 'ellipse',
             'background-image': 'data(icon)',
             'background-fit': 'contain',
             'background-clip': 'none',
@@ -175,47 +166,44 @@ export const GraphPage: React.FC = () => {
         {
           selector: 'node[type = "user"]',
           style: {
-            'background-color': '#172554',
+            'background-color': '#0c162c',
             'border-color': '#3b82f6',
-            'shape': 'ellipse',
+            'border-width': 2.5,
           },
         },
         {
           selector: 'node[type = "device"]',
           style: {
-            'background-color': '#0f172a',
-            'border-color': '#0284c7',
-            'shape': 'round-rectangle',
+            'background-color': '#16122a',
+            'border-color': '#8b5cf6',
+            'border-width': 2.5,
           },
         },
         {
           selector: 'node[type = "service"]',
           style: {
-            'background-color': '#082f49',
-            'border-color': '#06b6d4',
-            'shape': 'round-rectangle',
+            'background-color': '#0a1d18',
+            'border-color': '#10b981',
+            'border-width': 2.5,
           },
         },
         {
-          selector: 'node[type = "external"], node[type = "ip"]',
+          selector: 'node[type = "suspicious"], node[type = "alert"]',
           style: {
-            'background-color': '#1e293b',
-            'border-color': '#38bdf8',
-            'shape': 'ellipse',
-          },
-        },
-        {
-          selector: 'node[?isAlert]',
-          style: {
-            'background-color': '#7f1d1d',
+            'background-color': '#2a0e14',
             'border-color': '#ef4444',
             'border-width': 3,
-            'color': '#fca5a5',
-            'width': 58,
-            'height': 58,
-            'shape': 'ellipse',
-            'background-width': '26px',
-            'background-height': '26px',
+            'width': 56,
+            'height': 56,
+          },
+        },
+        {
+          selector: 'node[id $= "ws-207"], node[id $= "WS-207"]',
+          style: {
+            'border-color': '#38bdf8',
+            'border-width': 3.5,
+            'width': 60,
+            'height': 60,
           },
         },
         {
@@ -224,15 +212,16 @@ export const GraphPage: React.FC = () => {
             'width': 2,
             'curve-style': 'bezier',
             'target-arrow-shape': 'triangle',
-            'arrow-scale': 0.8,
+            'arrow-scale': 1.0,
             'line-color': '#3b82f6',
             'target-arrow-color': '#3b82f6',
             'label': 'data(label)',
-            'font-size': '9px',
-            'font-family': 'JetBrains Mono, monospace',
+            'font-size': '10px',
+            'font-family': '"IBM Plex Sans", sans-serif',
+            'font-weight': 500,
             'text-rotation': 'autorotate',
-            'text-background-opacity': 0.85,
-            'text-background-color': '#080c15',
+            'text-background-opacity': 0.9,
+            'text-background-color': '#080b11',
             'text-background-padding': '3px',
             'text-background-shape': 'roundrectangle',
             'color': '#94a3b8',
@@ -250,15 +239,13 @@ export const GraphPage: React.FC = () => {
           style: {
             'line-style': 'dashed',
             'line-dash-pattern': [6, 4],
-            'line-color': '#0284c7',
-            'target-arrow-color': '#0284c7',
+            'line-color': '#38bdf8',
+            'target-arrow-color': '#38bdf8',
           },
         },
         {
-          selector: 'edge[status = "needs_verification"], edge[status = "suspicious"]',
+          selector: 'edge[label *= "Privilege"], edge[target *= "203."], edge[status = "needs_verification"], edge[status = "suspicious"]',
           style: {
-            'line-style': 'dashed',
-            'line-dash-pattern': [4, 4],
             'line-color': '#ef4444',
             'target-arrow-color': '#ef4444',
             'color': '#fca5a5',
