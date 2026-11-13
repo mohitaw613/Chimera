@@ -3,8 +3,10 @@ Relationship and Edge Evidence Panel schemas.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
+
+from app.schemas.entity import CytoscapeNode
 
 
 class ConfidenceDelta(BaseModel):
@@ -54,7 +56,7 @@ class EntitySummary(BaseModel):
 class EvidenceItem(BaseModel):
     event_id: str
     role: str  # direct, corroborating, motivating
-    event_time: Optional[str] = None
+    event_time: Optional[Union[str, datetime]] = None
     source: str
     summary: str
     raw_record: Dict[str, Any]

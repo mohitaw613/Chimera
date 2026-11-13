@@ -10,6 +10,9 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.database.connection import Base, engine
 from app.api.investigations import router as investigations_router
+from app.api.uploads import router as uploads_router
+from app.api.analysis import router as analysis_router
+from app.api.graph import router as graph_router
 
 # Initialize database schema
 Base.metadata.create_all(bind=engine)
@@ -40,6 +43,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Include API v1 routers
 app.include_router(investigations_router, prefix="/api/v1")
+app.include_router(uploads_router, prefix="/api/v1")
+app.include_router(analysis_router, prefix="/api/v1")
+app.include_router(graph_router, prefix="/api/v1")
 
 
 @app.get("/")
