@@ -49,5 +49,6 @@ app.include_router(graph_router, prefix="/api/v1")
 
 
 @app.get("/")
+@app.get("/health")
 def health_check():
     return {"status": "ok", "app": settings.APP_NAME, "version": "1.0.0"}
