@@ -14,13 +14,17 @@ import { ReportPage } from './pages/ReportPage';
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <div className="flex flex-col min-h-screen bg-cyber-950 text-slate-100">
-        <Navbar />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <div className="flex h-screen bg-cyber-950 text-slate-100 overflow-hidden font-sans">
+        {/* Full-height Left Sidebar */}
+        <Sidebar />
+
+        {/* Main Content Area with Top Navbar */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <Navbar />
+          <main className="flex-1 overflow-y-auto p-6 lg:p-7">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/investigations/:id" element={<Dashboard />} />
               <Route path="/investigations/:id/upload" element={<UploadPage />} />
               <Route path="/investigations/:id/evidence" element={<EvidencePage />} />
               <Route path="/investigations/:id/timeline" element={<TimelinePage />} />

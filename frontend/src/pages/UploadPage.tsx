@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   UploadCloud,
-  FileCheck,
-  AlertCircle,
   FileCode,
   ArrowRight,
-  ShieldCheck,
   Hash,
   X,
-  FileSpreadsheet,
   CheckCircle2,
+  ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 
@@ -76,24 +73,25 @@ export const UploadPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Dynamic Header */}
-      <div>
-        <div className="flex items-center space-x-2 text-cyan-400 text-xs font-mono uppercase tracking-wider mb-1">
-          <UploadCloud className="w-3.5 h-3.5" />
-          <span>Stage 1: Evidence Ingestion & Cryptographic Fingerprinting</span>
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+      {/* Header Bar */}
+      <div className="card-glow rounded-2xl p-6">
+        <div className="flex items-center space-x-2 text-xs text-slate-400 font-medium mb-1">
+          <Link to="/" className="hover:text-slate-200">Investigations</Link>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+          <span className="text-blue-400 font-mono">#{investigationId}</span>
         </div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Upload Forensic Logs</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Ingest multi-source forensic logs in CSV, JSON, or JSONL format. CHIMERA computes SHA-256 digests and derives canonical events without discarding malformed records.
+        <h1 className="text-xl font-bold text-white tracking-tight">Upload Evidence Logs</h1>
+        <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+          Ingest multi-source forensic logs in CSV, JSON, or JSONL format. Files are hashed with SHA-256 for cryptographic integrity.
         </p>
       </div>
 
-      {/* Upload Zone */}
+      {/* Upload Drop Zone */}
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
-        className="bg-cyber-900 border-2 border-dashed border-cyber-700 hover:border-cyan-500/50 rounded-xl p-8 text-center transition-colors relative"
+        className="card-glow rounded-2xl p-8 text-center transition-all border-2 border-dashed border-cyber-800 hover:border-blue-500/50 relative cursor-pointer"
       >
         <input
           id="file-input"
@@ -104,9 +102,11 @@ export const UploadPage: React.FC = () => {
           className="sr-only"
         />
         <label htmlFor="file-input" className="cursor-pointer block">
-          <UploadCloud className="w-12 h-12 text-cyan-400 mx-auto mb-3 animate-pulse" />
-          <span className="text-base font-semibold text-white block">
-            Choose forensic log files or drag & drop here
+          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto mb-3">
+            <UploadCloud className="w-6 h-6" />
+          </div>
+          <span className="text-sm font-semibold text-white block">
+            Choose telemetry log files or drag & drop here
           </span>
           <span className="text-xs text-slate-400 block mt-1">
             Supported formats: CSV, JSON, JSONL • Max 25 MB per file
@@ -116,30 +116,29 @@ export const UploadPage: React.FC = () => {
 
       {/* Selected Files List */}
       {selectedFiles.length > 0 && (
-        <div className="bg-cyber-900 border border-cyber-800 rounded-xl p-5 space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-cyber-800 pb-2">
+        <div className="card-glow rounded-2xl p-5 space-y-3">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-300 border-b border-cyber-800 pb-2">
             <span>Staged Files ({selectedFiles.length})</span>
             <button
               onClick={() => setSelectedFiles([])}
-              className="text-rose-400 hover:underline normal-case"
+              className="text-rose-400 hover:underline text-xs"
             >
               Clear all
             </button>
           </div>
           <div className="divide-y divide-cyber-800">
             {selectedFiles.map((file, idx) => (
-              <div key={idx} className="py-2.5 flex items-center justify-between text-sm">
+              <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-3">
-                  <FileCode className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                  <span className="font-mono text-white text-xs">{file.name}</span>
-                  <span className="text-xs text-slate-500 font-mono">
+                  <FileCode className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  <span className="font-mono text-white">{file.name}</span>
+                  <span className="text-slate-500 font-mono">
                     ({(file.size / 1024).toFixed(1)} KB)
                   </span>
                 </div>
                 <button
                   onClick={() => removeFile(idx)}
-                  className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors"
-                  aria-label={`Remove ${file.name}`}
+                  className="text-slate-500 hover:text-white"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -147,101 +146,58 @@ export const UploadPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="pt-3 flex justify-end">
+          <div className="pt-2 flex justify-end">
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="px-5 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-medium text-sm flex items-center space-x-2 shadow-lg shadow-cyan-500/20 transition-all focus-visible:ring-2 focus-visible:ring-cyan-500"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-blue-500/20 disabled:opacity-50 transition-all"
             >
-              <ShieldCheck className="w-4 h-4" />
-              <span>{uploading ? 'Processing & Hashing…' : 'Ingest & Compute Fingerprints'}</span>
+              {uploading ? 'Processing & Hashing…' : 'Upload & Ingest'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Error Callout */}
+      {/* Error Message */}
       {uploadError && (
-        <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-start space-x-3 text-sm text-rose-300">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-400 mt-0.5" />
-          <div>
-            <div className="font-semibold text-white">Ingestion Error</div>
-            <div className="text-xs mt-1 text-rose-200">{uploadError}</div>
-          </div>
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300">
+          {uploadError}
         </div>
       )}
 
-      {/* Ingestion Results Summary */}
-      {results && results.length > 0 && (
-        <div className="bg-cyber-900 border border-cyber-800 rounded-xl overflow-hidden shadow-xl space-y-4 p-6">
+      {/* Ingestion Results Table */}
+      {results && (
+        <div className="card-glow rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-emerald-400">
-              <CheckCircle2 className="w-5 h-5" />
-              <h2 className="text-base font-bold text-white">Files Successfully Ingested</h2>
+            <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Ingestion Complete</span>
             </div>
             <button
               onClick={() => navigate(`/investigations/${investigationId}/evidence`)}
-              className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1 shadow-md shadow-blue-500/20"
             >
-              <span>Explore Canonical Events</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Explore Evidence</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="divide-y divide-cyber-800">
-            {results.map((res) => (
-              <div key={res.file_id} className="py-4 space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2">
-                    <FileCheck className="w-4 h-4 text-emerald-400" />
-                    <span className="font-mono text-sm font-semibold text-white">{res.filename}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-xs font-mono">
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      {res.rows_ok} valid
-                    </span>
-                    {res.rows_flagged > 0 && (
-                      <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        {res.rows_flagged} flagged
-                      </span>
-                    )}
-                    {res.rows_failed > 0 && (
-                      <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                        {res.rows_failed} failed
-                      </span>
-                    )}
-                  </div>
+          <div className="space-y-3">
+            {results.map((f) => (
+              <div key={f.file_id} className="p-4 rounded-xl bg-cyber-950 border border-cyber-800 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-white">{f.filename}</span>
+                  <span className="font-mono text-emerald-400 font-bold">{f.rows_ok} valid records</span>
                 </div>
-
-                <div className="flex items-center space-x-2 text-xs text-slate-400 font-mono bg-cyber-950 p-2 rounded border border-cyber-800">
+                <div className="flex items-center space-x-2 font-mono text-[11px] text-slate-400 truncate">
                   <Hash className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                  <span className="text-slate-500">SHA-256:</span>
-                  <span className="text-cyan-400 truncate">{res.sha256}</span>
+                  <span className="truncate">{f.sha256}</span>
                 </div>
-
-                {res.errors && res.errors.length > 0 && (
-                  <div className="p-3 rounded bg-rose-500/5 border border-rose-500/20 text-xs text-rose-300 space-y-1">
-                    <div className="font-semibold text-rose-200">Parse Errors (Retained for provenance):</div>
-                    {res.errors.map((err, i) => (
-                      <div key={i} className="font-mono">
-                        Row {err.row}: {err.reason}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Guidance Note */}
-      <div className="p-4 rounded-xl bg-cyber-900 border border-cyber-800 text-xs text-slate-400 flex items-start space-x-3">
-        <FileSpreadsheet className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-        <div className="leading-relaxed">
-          <strong className="text-slate-200">Forensic Integrity Policy:</strong> Raw records are stored verbatim in database columns. Timestamps are parsed to UTC. Delayed logs carry relative arrival tags and are never discarded.
-        </div>
-      </div>
     </div>
   );
 };

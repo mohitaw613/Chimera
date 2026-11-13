@@ -2,53 +2,59 @@ import React from 'react';
 import { NavLink, useParams, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  UploadCloud,
-  FileSpreadsheet,
-  Clock,
+  FolderGit2,
   GitFork,
+  Clock,
+  FileSpreadsheet,
   BrainCircuit,
-  Target,
   FileText,
+  Shield,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
   const { id: paramId } = useParams<{ id?: string }>();
   const location = useLocation();
   const match = location.pathname.match(/\/investigations\/([^/]+)/);
-  const investigationId = paramId || (match ? match[1] : undefined);
+  const currentInvId = paramId || (match ? match[1] : undefined);
 
-  const baseNavItems = [
-    { label: 'Overview', to: '/', icon: LayoutDashboard },
+  // Default target for investigation routes if none selected yet
+  const targetId = currentInvId || 'inv_synth_001';
+
+  const navItems = [
+    { label: 'Dashboard', to: '/', icon: LayoutDashboard, exact: true },
+    { label: 'Investigations', to: `/investigations/${targetId}/upload`, icon: FolderGit2 },
+    { label: 'Attack Graph', to: `/investigations/${targetId}/graph`, icon: GitFork },
+    { label: 'Timeline', to: `/investigations/${targetId}/timeline`, icon: Clock },
+    { label: 'Evidence Explorer', to: `/investigations/${targetId}/evidence`, icon: FileSpreadsheet },
+    { label: 'Hypotheses', to: `/investigations/${targetId}/hypotheses`, icon: BrainCircuit },
+    { label: 'Reports', to: `/investigations/${targetId}/report`, icon: FileText },
   ];
 
-  const investigationNavItems = investigationId
-    ? [
-        { label: 'Upload Evidence', to: `/investigations/${investigationId}/upload`, icon: UploadCloud },
-        { label: 'Evidence Explorer', to: `/investigations/${investigationId}/evidence`, icon: FileSpreadsheet },
-        { label: 'Timeline', to: `/investigations/${investigationId}/timeline`, icon: Clock },
-        { label: 'Attack Graph', to: `/investigations/${investigationId}/graph`, icon: GitFork },
-        { label: 'Hypotheses & Gaps', to: `/investigations/${investigationId}/hypotheses`, icon: BrainCircuit },
-        { label: 'Blast Radius', to: `/investigations/${investigationId}/blast-radius`, icon: Target },
-        { label: 'Report', to: `/investigations/${investigationId}/report`, icon: FileText },
-      ]
-    : [];
-
   return (
-    <aside className="w-64 border-r border-cyber-800 bg-cyber-900/60 flex flex-col flex-shrink-0">
-      <nav className="p-4 space-y-1">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 py-2">
-          Platform
+    <aside className="w-64 border-r border-cyber-800 bg-cyber-900/90 flex flex-col flex-shrink-0 select-none">
+      {/* Brand Header */}
+      <div className="p-5 flex items-center space-x-3.5 border-b border-cyber-800/80">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/20 flex-shrink-0">
+          <Shield className="w-5 h-5 text-white" />
         </div>
-        {baseNavItems.map((item) => (
+        <div className="overflow-hidden">
+          <h1 className="font-bold tracking-tight text-base text-white leading-tight">CHIMERA</h1>
+          <p className="text-[11px] text-slate-400 font-medium truncate">Cyber Investigation</p>
+        </div>
+      </div>
+
+      {/* Main Navigation */}
+      <nav className="p-3.5 space-y-1.5 flex-1">
+        {navItems.map((item) => (
           <NavLink
-            key={item.to}
+            key={item.label}
             to={item.to}
-            end
+            end={item.exact}
             className={({ isActive }) =>
-              `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all ${
                 isActive
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-300 hover:text-white hover:bg-cyber-800'
+                  ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30 shadow-sm shadow-blue-500/10'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-cyber-850'
               }`
             }
           >
@@ -56,42 +62,19 @@ export const Sidebar: React.FC = () => {
             <span>{item.label}</span>
           </NavLink>
         ))}
-
-        {investigationNavItems.length > 0 && (
-          <>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 pt-6 pb-2">
-              Investigation Analysis
-            </div>
-            {investigationNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                      : 'text-slate-300 hover:text-white hover:bg-cyber-800'
-                  }`
-                }
-              >
-                <item.icon className="w-4 h-4 flex-shrink-0" />
-                <span>{item.label}</span>
-              </NavLink>
-            ))}
-          </>
-        )}
       </nav>
 
-      {/* Footer System Status */}
-      <div className="mt-auto p-4 border-t border-cyber-800">
-        <div className="bg-cyber-950/80 rounded-lg p-3 border border-cyber-800 text-xs space-y-1.5">
-          <div className="flex items-center justify-between text-slate-400">
-            <span>Deterministic Engine</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+      {/* Footer System Status Banner */}
+      <div className="p-4 mt-auto">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-cyber-850 to-cyber-950 p-3.5 border border-cyber-800/80">
+          {/* Subtle background glow wave */}
+          <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-blue-600/15 rounded-full blur-xl pointer-events-none"></div>
+          
+          <div className="flex items-center space-x-2 text-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20 animate-pulse"></span>
+            <span className="font-semibold text-slate-200">System Online</span>
           </div>
-          <div className="text-[11px] text-slate-400 font-mono">
-            Rules v1.0 • SHA-256 Verified
-          </div>
+          <p className="text-[11px] text-slate-400 mt-0.5">All services operational</p>
         </div>
       </div>
     </aside>

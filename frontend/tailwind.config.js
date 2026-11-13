@@ -8,35 +8,36 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Epistemic Status Colors
+        // Epistemic & Security Status Colors
         epistemic: {
           observed: '#10b981',       // emerald-500
-          inferred: '#f59e0b',       // amber-500
+          inferred: '#3b82f6',       // blue-500
           unverified: '#f43f5e',     // rose-500
+          suspicious: '#ef4444',     // red-500
         },
-        // Entity Node Colors
-        entity: {
-          user: '#a855f7',           // purple-500
-          device: '#3b82f6',         // blue-500
-          service: '#06b6d4',        // cyan-500
-          ip: '#f97316',             // orange-500
-          event: '#eab308',          // yellow-500
-          external: '#ef4444',       // red-500
-        },
-        // Cyber investigation palette
+        // Cyber investigation palette (deep dark navy theme matching the design)
         cyber: {
-          950: '#070b12',
-          900: '#0b1320',
-          850: '#101a2c',
-          800: '#172338',
-          700: '#233550',
-          600: '#344b6e',
-          500: '#4a6792',
+          950: '#080c15',            // base dark background
+          900: '#0c1220',            // sidebar / topbar
+          850: '#11192c',            // cards background
+          800: '#18233c',            // card borders / dividers
+          750: '#1f2d4d',            // hover states
+          700: '#2a3c63',            // borders on focus
+          600: '#3d5485',            // subtle text
+          500: '#5c78b0',            // secondary text
+          blue: '#2563eb',
+          cyan: '#06b6d4',
+          accent: '#3b82f6',
         }
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      boxShadow: {
+        'glow-blue': '0 0 20px -3px rgba(59, 130, 246, 0.25)',
+        'glow-red': '0 0 20px -3px rgba(239, 68, 68, 0.35)',
+        'glow-cyan': '0 0 20px -3px rgba(6, 182, 212, 0.25)',
       }
     },
   },
