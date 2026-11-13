@@ -331,21 +331,24 @@ export const GraphPage: React.FC = () => {
 
     // ── Fade-in animation after layout positions nodes ──────────────────────
     layout.one('layoutstop', () => {
-      cy.fit(undefined, 50);
-      cy.nodes().forEach((node, i) => {
+      requestAnimationFrame(() => {
+        cy.resize();
+        cy.fit(undefined, 55);
+        cy.nodes().forEach((node, i) => {
+          setTimeout(() => {
+            node.animate(
+              { style: { opacity: 1 } },
+              { duration: 200, easing: 'ease-in-out-cubic' as any }
+            );
+          }, i * 40);           // staggered per-node
+        });
         setTimeout(() => {
-          node.animate(
+          cy.edges().animate(
             { style: { opacity: 1 } },
-            { duration: 220, easing: 'ease-in-out-cubic' as any }
+            { duration: 280, easing: 'ease-in-out-cubic' as any }
           );
-        }, i * 40);           // staggered per-node
+        }, cy.nodes().length * 40 + 50);
       });
-      setTimeout(() => {
-        cy.edges().animate(
-          { style: { opacity: 1 } },
-          { duration: 300, easing: 'ease-in-out-cubic' as any }
-        );
-      }, cy.nodes().length * 40 + 60);
     });
 
     layout.run();

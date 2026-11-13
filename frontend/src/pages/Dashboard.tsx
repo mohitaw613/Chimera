@@ -54,7 +54,7 @@ export const Dashboard: React.FC = () => {
   // Active case telemetry & forensics data
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
   const [hypothesesData, setHypothesesData] = useState<HypothesesOverviewResponse | null>(null);
-  const [_timelineData, setTimelineData] = useState<TimelineResponse | null>(null);
+  const [timelineData, setTimelineData] = useState<TimelineResponse | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [graphViewMode, setGraphViewMode] = useState<'overview' | 'focus' | 'explore'>('overview');
 
@@ -397,21 +397,25 @@ export const Dashboard: React.FC = () => {
 
     // Staggered fade-in after layout positions nodes
     layout.one('layoutstop', () => {
-      cy.fit(undefined, 45);
-      cy.nodes().forEach((node, i) => {
+      // Use rAF to let cytoscape finish its internal resize before fitting
+      requestAnimationFrame(() => {
+        cy.resize();
+        cy.fit(undefined, 50);
+        cy.nodes().forEach((node, i) => {
+          setTimeout(() => {
+            node.animate(
+              { style: { opacity: 1 } },
+              { duration: 200, easing: 'ease-in-out-cubic' as any }
+            );
+          }, i * 40);
+        });
         setTimeout(() => {
-          node.animate(
+          cy.edges().animate(
             { style: { opacity: 1 } },
-            { duration: 200, easing: 'ease-in-out-cubic' as any }
+            { duration: 260, easing: 'ease-in-out-cubic' as any }
           );
-        }, i * 45);
+        }, cy.nodes().length * 40 + 40);
       });
-      setTimeout(() => {
-        cy.edges().animate(
-          { style: { opacity: 1 } },
-          { duration: 280, easing: 'ease-in-out-cubic' as any }
-        );
-      }, cy.nodes().length * 45 + 50);
     });
 
     layout.run();
@@ -452,18 +456,34 @@ export const Dashboard: React.FC = () => {
     cyRef.current?.zoom(cyRef.current.zoom() * 0.8);
   };
 
-  // Leading hypothesis and suspicion score calculation
+  // Leading hypothesis and suspicion score calculation — from real API data
   const leadingHypothesis = hypothesesData?.hypotheses?.find((h) => h.status === 'leading') || hypothesesData?.hypotheses?.[0];
-  const suspicionScore = leadingHypothesis ? leadingHypothesis.score : 72;
+  const suspicionScore = leadingHypothesis ? Math.round(leadingHypothesis.score) : null;
 
-  // Key events for the horizontal stepper
-  const sampleTimelineEvents = [
-    { time: '10:12 AM', label: 'User Login', icon: UserIcon, alert: false },
-    { time: '10:18 AM', label: 'New Device', icon: Laptop, alert: false },
-    { time: '10:24 AM', label: 'Service Access', icon: Server, alert: false },
-    { time: '10:32 AM', label: 'Privilege Change', icon: Shield, alert: true },
-    { time: '10:36 AM', label: 'External Connect', icon: Globe, alert: false },
-  ];
+  // Timeline events — from real API data, mapped to icon+color
+  const TIMELINE_TYPE_META: Record<string, { label: string; icon: typeof UserIcon; alert: boolean }> = {
+    login: { label: 'User Login', icon: UserIcon, alert: false },
+    authentication: { label: 'Auth Event', icon: UserIcon, alert: false },
+    network: { label: 'Network Event', icon: Globe, alert: false },
+    process: { label: 'Process Exec', icon: FileCode, alert: false },
+    file_access: { label: 'File Access', icon: FileText, alert: false },
+    service_access: { label: 'Service Access', icon: Server, alert: false },
+    privilege_change: { label: 'Privilege Change', icon: Shield, alert: true },
+    privilege_escalation: { label: 'Priv. Escalation', icon: Shield, alert: true },
+    lateral_movement: { label: 'Lateral Movement', icon: Share2, alert: true },
+    external_connection: { label: 'External Connect', icon: Globe, alert: false },
+    new_device: { label: 'New Device', icon: Laptop, alert: false },
+  };
+
+  const realTimelineEvents = (timelineData?.events ?? []).slice(0, 7).map((ev) => {
+    const type = ev.event_type?.toLowerCase().replace(/\s+/g, '_') || '';
+    const meta = TIMELINE_TYPE_META[type] || { label: ev.event_type || 'Event', icon: FileText, alert: false };
+    const isAlert = meta.alert || ev.flags?.includes('suspicious') || ev.primary_flag === 'suspicious';
+    const timeStr = ev.event_time
+      ? new Date(ev.event_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '—';
+    return { time: timeStr, label: meta.label, icon: meta.icon, alert: isAlert };
+  });
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
@@ -551,7 +571,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
-              {activeCase?.counts?.events || summary?.total_events || 248}
+              {activeCase?.counts?.events ?? summary?.total_events ?? 0}
             </div>
             <div className="text-xs text-slate-400 font-medium">Events</div>
           </div>
@@ -581,7 +601,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
-              {activeCase?.counts?.entities || summary?.total_entities || 34}
+              {activeCase?.counts?.entities ?? summary?.total_entities ?? 0}
             </div>
             <div className="text-xs text-slate-400 font-medium">Entities</div>
           </div>
@@ -611,7 +631,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
-              {activeCase?.counts?.open_gaps ?? summary?.open_gaps ?? 6}
+              {activeCase?.counts?.open_gaps ?? summary?.open_gaps ?? 0}
             </div>
             <div className="text-xs text-slate-400 font-medium">Evidence Gaps</div>
           </div>
@@ -641,7 +661,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
-              {graphData?.edges?.length || 12}
+              {graphData?.edges?.length ?? 0}
             </div>
             <div className="text-xs text-slate-400 font-medium">Relationships</div>
           </div>
@@ -669,7 +689,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
-              {suspicionScore} <span className="text-sm font-normal text-slate-400">/ 100</span>
+              {suspicionScore !== null ? suspicionScore : '—'} <span className="text-sm font-normal text-slate-400">/ 100</span>
             </div>
             <div className="text-xs text-slate-400 font-medium">Suspicion Score</div>
           </div>
@@ -677,7 +697,7 @@ export const Dashboard: React.FC = () => {
           <div className="mt-3 w-full bg-cyber-800 rounded-full h-2 overflow-hidden">
             <div
               className="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, suspicionScore)}%` }}
+              style={{ width: `${suspicionScore !== null ? Math.min(100, suspicionScore) : 0}%` }}
             ></div>
           </div>
         </div>
@@ -806,35 +826,43 @@ export const Dashboard: React.FC = () => {
 
             {/* Horizontal Timeline Sequence */}
             <div className="relative py-4">
-              {/* Connecting Horizontal Line */}
-              <div className="absolute top-1/2 left-8 right-8 -translate-y-2 h-0.5 bg-cyber-700"></div>
-
-              <div className="relative z-10 flex items-center justify-between">
-                {sampleTimelineEvents.map((evt, idx) => {
-                  const Icon = evt.icon;
-                  return (
-                    <div key={idx} className="flex flex-col items-center group cursor-pointer">
-                      <div className="text-[11px] font-mono text-slate-400 mb-2">{evt.time}</div>
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                          evt.alert
-                            ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-glow-red scale-110'
-                            : 'bg-cyber-850 border border-blue-500/40 text-blue-400 hover:border-blue-400'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div
-                        className={`text-xs font-semibold mt-2.5 text-center ${
-                          evt.alert ? 'text-rose-300' : 'text-slate-300'
-                        }`}
-                      >
-                        {evt.label}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              {realTimelineEvents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 text-slate-500 text-xs font-mono space-y-1">
+                  <Clock className="w-6 h-6 text-slate-600 mb-1" />
+                  <span>No events yet — upload log files to populate the timeline.</span>
+                </div>
+              ) : (
+                <>
+                  {/* Connecting Horizontal Line */}
+                  <div className="absolute top-1/2 left-8 right-8 -translate-y-2 h-0.5 bg-cyber-700"></div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    {realTimelineEvents.map((evt, idx) => {
+                      const Icon = evt.icon;
+                      return (
+                        <div key={idx} className="flex flex-col items-center group cursor-pointer">
+                          <div className="text-[11px] font-mono text-slate-400 mb-2">{evt.time}</div>
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                              evt.alert
+                                ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-glow-red scale-110'
+                                : 'bg-cyber-850 border border-blue-500/40 text-blue-400 hover:border-blue-400'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div
+                            className={`text-xs font-semibold mt-2.5 text-center ${
+                              evt.alert ? 'text-rose-300' : 'text-slate-300'
+                            }`}
+                          >
+                            {evt.label}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -851,29 +879,45 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="space-y-2.5">
-              <div className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-start space-x-3">
-                <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <div className="font-semibold text-slate-200">Unusual login pattern detected</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5 font-mono">2:17 AM – 4:32 AM UTC</div>
+              {hypothesesData?.gaps && hypothesesData.gaps.length > 0 ? (
+                hypothesesData.gaps.slice(0, 3).map((gap, idx) => {
+                  const sevColor = gap.severity === 'high' ? 'rose' : gap.severity === 'medium' ? 'amber' : 'blue';
+                  const SevIcon = gap.severity === 'high' ? AlertTriangle : gap.severity === 'medium' ? Clock : Info;
+                  return (
+                    <div key={idx} className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-start space-x-3">
+                      <SevIcon className={`w-4 h-4 text-${sevColor}-400 flex-shrink-0 mt-0.5`} />
+                      <div className="text-xs">
+                        <div className="font-semibold text-slate-200">{gap.title}</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">{gap.description.slice(0, 80)}{gap.description.length > 80 ? '…' : ''}</div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : graphData?.nodes && graphData.nodes.length > 0 ? (
+                <>
+                  {graphData.nodes.some(n => n.data.suspicious) && (
+                    <div className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-start space-x-3">
+                      <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <div className="font-semibold text-slate-200">Suspicious entity detected in graph</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">{graphData.nodes.find(n => n.data.suspicious)?.data.id}</div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-start space-x-3">
+                    <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <div className="font-semibold text-slate-200">{graphData.nodes.length} entities mapped</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">{graphData.edges.length} relationships observed</div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center py-4 text-slate-500 text-xs font-mono space-y-1">
+                  <Lightbulb className="w-5 h-5 text-slate-600 mb-1" />
+                  <span>Upload evidence to surface insights.</span>
                 </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-start space-x-3">
-                <Info className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <div className="font-semibold text-slate-200">Privilege escalation observed</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">Within 12 min of interactive session</div>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-start space-x-3">
-                <Clock className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <div className="font-semibold text-slate-200">External connection detected</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5 font-mono">Egress to 203.0.113.45</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -887,7 +931,7 @@ export const Dashboard: React.FC = () => {
                 <h2 className="text-sm font-bold text-white tracking-tight">Investigation Hypotheses</h2>
               </div>
               <Link
-                to={`/investigations/${activeCase?.id || 'inv_synth_001'}/hypotheses`}
+                to={`/investigations/${activeCase?.id}/hypotheses`}
                 className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1"
               >
                 <span>View All</span>
@@ -896,36 +940,41 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              {/* Hypothesis 1 */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                    <span className="font-semibold text-slate-200">Unauthorized Activity</span>
-                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                      Primary
-                    </span>
-                  </div>
-                  <span className="font-mono font-bold text-slate-200">72 / 100</span>
+              {hypothesesData?.hypotheses && hypothesesData.hypotheses.length > 0 ? (
+                hypothesesData.hypotheses.slice(0, 3).map((h, idx) => {
+                  const score = Math.round(h.score);
+                  const isLeading = idx === 0;
+                  const barColors = ['from-rose-500 to-orange-500', 'from-blue-600 to-cyan-500', 'from-purple-600 to-indigo-500'];
+                  const dotColors = ['bg-rose-500', 'bg-blue-500', 'bg-purple-500'];
+                  return (
+                    <div key={h.id} className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-2">
+                          <span className={`w-2 h-2 rounded-full ${dotColors[idx] || 'bg-slate-500'}`}></span>
+                          <span className="font-semibold text-slate-200 truncate max-w-[130px]">{h.label}</span>
+                          {isLeading && (
+                            <span className="px-1.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono font-bold text-slate-200 shrink-0">{score} / 100</span>
+                      </div>
+                      <div className="w-full bg-cyber-950 rounded-full h-2 overflow-hidden border border-cyber-800">
+                        <div
+                          className={`bg-gradient-to-r ${barColors[idx] || 'from-slate-600 to-slate-500'} h-2 rounded-full transition-all duration-700`}
+                          style={{ width: `${Math.min(100, score)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center py-4 text-slate-500 text-xs font-mono space-y-1">
+                  <Shield className="w-5 h-5 text-slate-600 mb-1" />
+                  <span>Run analysis to generate hypotheses.</span>
                 </div>
-                <div className="w-full bg-cyber-950 rounded-full h-2 overflow-hidden border border-cyber-800">
-                  <div className="bg-gradient-to-r from-rose-500 to-orange-500 h-2 rounded-full w-[72%]"></div>
-                </div>
-              </div>
-
-              {/* Hypothesis 2 */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span className="font-semibold text-slate-200">Legitimate Maintenance</span>
-                  </div>
-                  <span className="font-mono font-bold text-slate-400">38 / 100</span>
-                </div>
-                <div className="w-full bg-cyber-950 rounded-full h-2 overflow-hidden border border-cyber-800">
-                  <div className="bg-gradient-to-r from-blue-600 to-cyan-500 h-2 rounded-full w-[38%]"></div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -939,7 +988,7 @@ export const Dashboard: React.FC = () => {
                 <h2 className="text-sm font-bold text-white tracking-tight">Recent Evidence</h2>
               </div>
               <Link
-                to={`/investigations/${activeCase?.id || 'inv_synth_001'}/evidence`}
+                to={`/investigations/${activeCase?.id}/evidence`}
                 className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1"
               >
                 <span>View All</span>
@@ -948,31 +997,32 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="space-y-2.5">
-              <div className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    CSV
-                  </span>
-                  <div className="text-xs">
-                    <div className="font-semibold text-slate-200">auth_logs.csv</div>
-                    <div className="text-[11px] text-slate-400">2.4 MB • Uploaded recently</div>
-                  </div>
+              {graphData?.nodes && graphData.nodes.length > 0 ? (
+                graphData.nodes.slice(0, 3).map((node) => {
+                  const id = node.data.id;
+                  const ext = id.includes('csv') ? 'CSV' : id.includes('json') ? 'JSON' : 'LOG';
+                  const color = ext === 'CSV' ? 'emerald' : ext === 'JSON' ? 'purple' : 'blue';
+                  return (
+                    <div key={id} className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-${color}-500/10 text-${color}-400 border border-${color}-500/20`}>
+                          {ext}
+                        </span>
+                        <div className="text-xs">
+                          <div className="font-semibold text-slate-200 font-mono truncate max-w-[140px]">{id}</div>
+                          <div className="text-[11px] text-slate-400">Entity in graph</div>
+                        </div>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center py-4 text-slate-500 text-xs font-mono space-y-1">
+                  <FileCode className="w-5 h-5 text-slate-600 mb-1" />
+                  <span>Upload evidence files to begin.</span>
                 </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              </div>
-
-              <div className="p-3 rounded-xl bg-cyber-950/60 border border-cyber-800 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                    JSON
-                  </span>
-                  <div className="text-xs">
-                    <div className="font-semibold text-slate-200">system_events.json</div>
-                    <div className="text-[11px] text-slate-400">1.1 MB • Uploaded recently</div>
-                  </div>
-                </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              </div>
+              )}
             </div>
           </div>
         </div>
