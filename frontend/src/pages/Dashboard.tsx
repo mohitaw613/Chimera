@@ -106,6 +106,10 @@ export const Dashboard: React.FC = () => {
   };
 
   const loadCaseDetails = async (caseId: string) => {
+    // Clear stale data immediately
+    setGraphData(null);
+    setHypothesesData(null);
+    setTimelineData(null);
     try {
       const [graph, hyp, timeline] = await Promise.all([
         api.getGraph(caseId),
@@ -236,21 +240,23 @@ export const Dashboard: React.FC = () => {
       });
     });
 
-    const NODE_SIZE = 64;
-    const ALERT_NODE_SIZE = 72;
+    const NODE_SIZE = 60;
+    const ALERT_NODE_SIZE = 70;
 
     const cy = cytoscape({
       container: containerRef.current,
       elements: elements,
       boxSelectionEnabled: false,
       autounselectify: true,
+      minZoom: 0.2,
+      maxZoom: 4,
       style: [
         {
           selector: 'node',
           style: {
             'label': 'data(displayLabel)',
             'text-wrap': 'wrap',
-            'text-max-width': '95px',
+            'text-max-width': '90px',
             'color': '#cbd5e1',
             'font-size': '9px',
             'font-family': '"JetBrains Mono", monospace',
@@ -264,37 +270,26 @@ export const Dashboard: React.FC = () => {
             'width': NODE_SIZE,
             'height': NODE_SIZE,
             'shape': 'ellipse',
-            // Icon stays strictly inside circle at 55% of diameter
             'background-image': 'data(icon)',
             'background-fit': 'contain',
             'background-clip': 'node',
-            'background-width': '55%',
-            'background-height': '55%',
+            'background-width': '52%',
+            'background-height': '52%',
             'background-position-x': '50%',
             'background-position-y': '50%',
-            'opacity': 0,
           },
         },
         {
           selector: 'node[type = "user"]',
-          style: {
-            'background-color': '#0c1a30',
-            'border-color': '#3b82f6',
-          },
+          style: { 'background-color': '#0c1a30', 'border-color': '#3b82f6' },
         },
         {
           selector: 'node[type = "device"]',
-          style: {
-            'background-color': '#161228',
-            'border-color': '#8b5cf6',
-          },
+          style: { 'background-color': '#161228', 'border-color': '#8b5cf6' },
         },
         {
           selector: 'node[type = "service"], node[type = "database"]',
-          style: {
-            'background-color': '#0a1d18',
-            'border-color': '#10b981',
-          },
+          style: { 'background-color': '#0a1d18', 'border-color': '#10b981' },
         },
         {
           selector: 'node[type = "suspicious"], node[type = "alert"]',
@@ -308,10 +303,7 @@ export const Dashboard: React.FC = () => {
         },
         {
           selector: 'node[type = "external"]',
-          style: {
-            'background-color': '#280d12',
-            'border-color': '#f97316',
-          },
+          style: { 'background-color': '#280d12', 'border-color': '#f97316' },
         },
         {
           selector: 'edge',
@@ -320,8 +312,8 @@ export const Dashboard: React.FC = () => {
             'curve-style': 'bezier',
             'target-arrow-shape': 'triangle',
             'arrow-scale': 0.9,
-            'line-color': '#334155',
-            'target-arrow-color': '#334155',
+            'line-color': '#3b82f6',
+            'target-arrow-color': '#3b82f6',
             'label': 'data(label)',
             'font-size': '9px',
             'font-family': '"IBM Plex Sans", sans-serif',
@@ -331,15 +323,6 @@ export const Dashboard: React.FC = () => {
             'text-background-color': '#080b11',
             'text-background-padding': '4px',
             'text-background-shape': 'roundrectangle',
-            'color': '#64748b',
-            'opacity': 0,
-          },
-        },
-        {
-          selector: 'edge[status = "observed"]',
-          style: {
-            'line-color': '#3b82f6',
-            'target-arrow-color': '#3b82f6',
             'color': '#7dd3fc',
           },
         },
@@ -366,7 +349,7 @@ export const Dashboard: React.FC = () => {
       layout: { name: 'null' } as any,
     });
 
-    // Choose layout per view mode
+    // Run layout then fit — use setTimeout so the container has its CSS height
     const layoutOptions: any = graphViewMode === 'overview'
       ? {
           name: 'concentric',
@@ -377,48 +360,28 @@ export const Dashboard: React.FC = () => {
             return 3;
           },
           levelWidth: () => 2,
-          minNodeSpacing: 100,
-          startAngle: Math.PI / 4,
+          minNodeSpacing: 90,
+          startAngle: Math.PI / 2,
           clockwise: true,
-          equidistant: false,
-          padding: 55,
+          padding: 50,
           animate: false,
         }
       : {
           name: 'dagre',
           rankDir: 'LR',
-          nodeSep: 100,
-          rankSep: 140,
-          padding: 55,
+          nodeSep: 90,
+          rankSep: 130,
+          padding: 50,
           animate: false,
         };
 
-    const layout = cy.layout(layoutOptions);
+    cy.layout(layoutOptions).run();
 
-    // Staggered fade-in after layout positions nodes
-    layout.one('layoutstop', () => {
-      // Use rAF to let cytoscape finish its internal resize before fitting
-      requestAnimationFrame(() => {
-        cy.resize();
-        cy.fit(undefined, 50);
-        cy.nodes().forEach((node, i) => {
-          setTimeout(() => {
-            node.animate(
-              { style: { opacity: 1 } },
-              { duration: 200, easing: 'ease-in-out-cubic' as any }
-            );
-          }, i * 40);
-        });
-        setTimeout(() => {
-          cy.edges().animate(
-            { style: { opacity: 1 } },
-            { duration: 260, easing: 'ease-in-out-cubic' as any }
-          );
-        }, cy.nodes().length * 40 + 40);
-      });
-    });
-
-    layout.run();
+    // After layout runs positions, force a resize + fit so the container has settled
+    setTimeout(() => {
+      cy.resize();
+      cy.fit(undefined, 40);
+    }, 150);
 
     cy.on('tap', 'edge', async (evt) => {
       const edge = evt.target;
@@ -445,7 +408,8 @@ export const Dashboard: React.FC = () => {
   }, [graphData, activeCase, graphViewMode]);
 
   const fitView = () => {
-    cyRef.current?.fit(undefined, 35);
+    cyRef.current?.resize();
+    cyRef.current?.fit(undefined, 40);
   };
 
   const zoomIn = () => {
@@ -565,15 +529,13 @@ export const Dashboard: React.FC = () => {
             <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
               <FileText className="w-4 h-4" />
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-              ↑ +12%
-            </span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Events</span>
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
               {activeCase?.counts?.events ?? summary?.total_events ?? 0}
             </div>
-            <div className="text-xs text-slate-400 font-medium">Events</div>
+            <div className="text-xs text-slate-400 font-medium">Log records ingested</div>
           </div>
           {/* Mini Sparkline SVG */}
           <div className="mt-2 h-6 w-full">
@@ -595,15 +557,13 @@ export const Dashboard: React.FC = () => {
             <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
               <Users className="w-4 h-4" />
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-              ↑ +8%
-            </span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Entities</span>
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
               {activeCase?.counts?.entities ?? summary?.total_entities ?? 0}
             </div>
-            <div className="text-xs text-slate-400 font-medium">Entities</div>
+            <div className="text-xs text-slate-400 font-medium">Distinct actors & assets</div>
           </div>
           {/* Mini Sparkline SVG */}
           <div className="mt-2 h-6 w-full">
@@ -625,15 +585,13 @@ export const Dashboard: React.FC = () => {
             <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
               <AlertTriangle className="w-4 h-4" />
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20">
-              ↓ -1
-            </span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gaps</span>
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
               {activeCase?.counts?.open_gaps ?? summary?.open_gaps ?? 0}
             </div>
-            <div className="text-xs text-slate-400 font-medium">Evidence Gaps</div>
+            <div className="text-xs text-slate-400 font-medium">Open evidence gaps</div>
           </div>
           {/* Mini Sparkline SVG */}
           <div className="mt-2 h-6 w-full">
@@ -655,15 +613,13 @@ export const Dashboard: React.FC = () => {
             <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
               <Share2 className="w-4 h-4" />
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-              ↑ +20%
-            </span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Graph</span>
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-white font-sans tracking-tight">
               {graphData?.edges?.length ?? 0}
             </div>
-            <div className="text-xs text-slate-400 font-medium">Relationships</div>
+            <div className="text-xs text-slate-400 font-medium">Relationships mapped</div>
           </div>
           {/* Mini Sparkline SVG */}
           <div className="mt-2 h-6 w-full">
@@ -807,8 +763,8 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Cytoscape Radar Canvas */}
-            <div className="relative flex-1 w-full h-full radar-grid overflow-hidden">
-              <div ref={containerRef} className="w-full h-full absolute inset-0" />
+            <div className="relative flex-1 w-full min-h-0">
+              <div ref={containerRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
             </div>
           </div>
 

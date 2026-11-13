@@ -130,19 +130,20 @@ export const GraphPage: React.FC = () => {
       });
     });
 
-    const NODE_SIZE = 68;
-    const ALERT_NODE_SIZE = 76;
+    const NODE_SIZE = 64;
+    const ALERT_NODE_SIZE = 74;
 
     const cy = cytoscape({
       container: containerRef.current,
       elements: elements,
       boxSelectionEnabled: false,
       autounselectify: true,
+      minZoom: 0.2,
+      maxZoom: 4,
       style: [
         {
           selector: 'node',
           style: {
-            // Label below node with enough spacing so it never clips into the circle
             'label': 'data(displayLabel)',
             'text-wrap': 'wrap',
             'text-max-width': '100px',
@@ -153,45 +154,32 @@ export const GraphPage: React.FC = () => {
             'text-valign': 'bottom',
             'text-halign': 'center',
             'text-margin-y': 10,
-            // Node appearance
             'background-color': '#0e172a',
             'border-width': 2.5,
             'border-color': '#3b82f6',
             'width': NODE_SIZE,
             'height': NODE_SIZE,
             'shape': 'ellipse',
-            // Icon — 55% of node diameter so it always fits inside the circle
             'background-image': 'data(icon)',
             'background-fit': 'contain',
-            'background-clip': 'node',       // strictly clip to circle boundary
-            'background-width': '55%',
-            'background-height': '55%',
+            'background-clip': 'node',
+            'background-width': '52%',
+            'background-height': '52%',
             'background-position-x': '50%',
             'background-position-y': '50%',
-            // Start invisible; animate in after layout
-            'opacity': 0,
           },
         },
         {
           selector: 'node[type = "user"]',
-          style: {
-            'background-color': '#0c1a30',
-            'border-color': '#3b82f6',
-          },
+          style: { 'background-color': '#0c1a30', 'border-color': '#3b82f6' },
         },
         {
           selector: 'node[type = "device"]',
-          style: {
-            'background-color': '#161228',
-            'border-color': '#8b5cf6',
-          },
+          style: { 'background-color': '#161228', 'border-color': '#8b5cf6' },
         },
         {
           selector: 'node[type = "service"], node[type = "database"]',
-          style: {
-            'background-color': '#0a1d18',
-            'border-color': '#10b981',
-          },
+          style: { 'background-color': '#0a1d18', 'border-color': '#10b981' },
         },
         {
           selector: 'node[type = "suspicious"], node[type = "alert"]',
@@ -205,22 +193,12 @@ export const GraphPage: React.FC = () => {
         },
         {
           selector: 'node[type = "external"]',
-          style: {
-            'background-color': '#280d12',
-            'border-color': '#f97316',
-            'border-width': 2.5,
-          },
+          style: { 'background-color': '#280d12', 'border-color': '#f97316' },
         },
-        // Highlight selected node
         {
           selector: 'node:selected',
-          style: {
-            'border-width': 4,
-            'border-color': '#38bdf8',
-            'background-color': '#0d2040',
-          },
+          style: { 'border-width': 4, 'border-color': '#38bdf8', 'background-color': '#0d2040' },
         },
-        // Dim non-selected when something is selected
         {
           selector: 'node.dimmed',
           style: { 'opacity': 0.25 },
@@ -232,8 +210,8 @@ export const GraphPage: React.FC = () => {
             'curve-style': 'bezier',
             'target-arrow-shape': 'triangle',
             'arrow-scale': 0.9,
-            'line-color': '#334155',
-            'target-arrow-color': '#334155',
+            'line-color': '#3b82f6',
+            'target-arrow-color': '#3b82f6',
             'label': 'data(label)',
             'font-size': '9px',
             'font-family': '"IBM Plex Sans", sans-serif',
@@ -243,15 +221,6 @@ export const GraphPage: React.FC = () => {
             'text-background-color': '#080b11',
             'text-background-padding': '4px',
             'text-background-shape': 'roundrectangle',
-            'color': '#64748b',
-            'opacity': 0,
-          },
-        },
-        {
-          selector: 'edge[status = "observed"]',
-          style: {
-            'line-color': '#3b82f6',
-            'target-arrow-color': '#3b82f6',
             'color': '#7dd3fc',
           },
         },
@@ -276,18 +245,14 @@ export const GraphPage: React.FC = () => {
         },
         {
           selector: 'edge:selected',
-          style: {
-            'width': 3,
-            'line-color': '#38bdf8',
-            'target-arrow-color': '#38bdf8',
-          },
+          style: { 'width': 3, 'line-color': '#38bdf8', 'target-arrow-color': '#38bdf8' },
         },
         {
           selector: 'edge.dimmed',
           style: { 'opacity': 0.1 },
         },
       ],
-      layout: { name: 'null' } as any,  // position manually below
+      layout: { name: 'null' } as any,
     });
 
     // ── Choose layout ────────────────────────────────────────────────────────
@@ -301,57 +266,37 @@ export const GraphPage: React.FC = () => {
             return 3;
           },
           levelWidth: () => 2,
-          minNodeSpacing: 110,       // generous ring gap — prevents label clash
-          startAngle: Math.PI / 4,
-          sweep: undefined,
+          minNodeSpacing: 100,
+          startAngle: Math.PI / 2,
           clockwise: true,
-          equidistant: false,
-          padding: 60,
-          animate: false,            // we drive animation ourselves below
+          padding: 55,
+          animate: false,
         }
       : viewMode === 'focus'
       ? {
           name: 'dagre',
           rankDir: 'TB',
-          nodeSep: 100,
-          rankSep: 130,
-          padding: 60,
+          nodeSep: 90,
+          rankSep: 120,
+          padding: 55,
           animate: false,
         }
       : {
           name: 'dagre',
           rankDir: 'LR',
-          nodeSep: 110,
-          rankSep: 150,
-          padding: 60,
+          nodeSep: 100,
+          rankSep: 140,
+          padding: 55,
           animate: false,
         };
 
-    const layout = cy.layout(layoutOptions);
+    cy.layout(layoutOptions).run();
 
-    // ── Fade-in animation after layout positions nodes ──────────────────────
-    layout.one('layoutstop', () => {
-      requestAnimationFrame(() => {
-        cy.resize();
-        cy.fit(undefined, 55);
-        cy.nodes().forEach((node, i) => {
-          setTimeout(() => {
-            node.animate(
-              { style: { opacity: 1 } },
-              { duration: 200, easing: 'ease-in-out-cubic' as any }
-            );
-          }, i * 40);           // staggered per-node
-        });
-        setTimeout(() => {
-          cy.edges().animate(
-            { style: { opacity: 1 } },
-            { duration: 280, easing: 'ease-in-out-cubic' as any }
-          );
-        }, cy.nodes().length * 40 + 50);
-      });
-    });
-
-    layout.run();
+    // After layout runs, force resize + fit so the container dimensions are settled
+    setTimeout(() => {
+      cy.resize();
+      cy.fit(undefined, 50);
+    }, 150);
 
     cy.on('tap', 'edge', async (evt) => {
       const edge = evt.target;
@@ -387,7 +332,8 @@ export const GraphPage: React.FC = () => {
   }, [graphData, activeFilter, viewMode]);
 
   const fitView = () => {
-    cyRef.current?.fit(undefined, 40);
+    cyRef.current?.resize();
+    cyRef.current?.fit(undefined, 50);
   };
 
   const zoomIn = () => {
