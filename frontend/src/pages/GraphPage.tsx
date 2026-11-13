@@ -16,6 +16,7 @@ import {
 import { api } from '../api/client';
 import { EdgeDetail, GraphResponse } from '../types';
 import { EdgeEvidencePanel } from '../components/EdgeEvidencePanel';
+import { NODE_ICONS, formatNodeLabel } from '../utils/graphVisuals';
 
 // Register dagre layout
 try {
@@ -36,6 +37,7 @@ export const GraphPage: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'observed' | 'inferred' | 'suspicious'>('all');
+  const [viewMode, setViewMode] = useState<'overview' | 'focus' | 'explore'>('overview');
 
   useEffect(() => {
     loadGraph();
@@ -54,25 +56,74 @@ export const GraphPage: React.FC = () => {
   useEffect(() => {
     if (!containerRef.current || !graphData) return;
 
+    let targetNodes = graphData.nodes;
+    let targetEdges = graphData.edges;
+
+    if (viewMode === 'overview' || viewMode === 'focus') {
+      const alertNode = graphData.nodes.find((n) => {
+        const id = n.data.id.toLowerCase();
+        const lbl = (n.data.label || '').toLowerCase();
+        return id.includes('privilege') || lbl.includes('privilege') || id.startsWith('event:');
+      }) || graphData.nodes[0];
+
+      if (alertNode) {
+        const alertId = alertNode.data.id;
+        const connectedEdgeTargets = new Set<string>();
+        connectedEdgeTargets.add(alertId);
+
+        graphData.edges.forEach((e) => {
+          if (e.data.source === alertId) connectedEdgeTargets.add(e.data.target);
+          if (e.data.target === alertId) connectedEdgeTargets.add(e.data.source);
+        });
+
+        if (viewMode === 'overview') {
+          const secondHop = new Set<string>(connectedEdgeTargets);
+          graphData.edges.forEach((e) => {
+            if (connectedEdgeTargets.has(e.data.source)) secondHop.add(e.data.target);
+            if (connectedEdgeTargets.has(e.data.target)) secondHop.add(e.data.source);
+          });
+          const primaryIds = Array.from(secondHop).slice(0, 10);
+          const primarySet = new Set(primaryIds);
+          targetNodes = graphData.nodes.filter((n) => primarySet.has(n.data.id));
+          targetEdges = graphData.edges.filter((e) => primarySet.has(e.data.source) && primarySet.has(e.data.target));
+        } else {
+          targetNodes = graphData.nodes.filter((n) => connectedEdgeTargets.has(n.data.id));
+          targetEdges = graphData.edges.filter((e) => connectedEdgeTargets.has(e.data.source) && connectedEdgeTargets.has(e.data.target));
+        }
+      }
+    }
+
     const elements: any[] = [];
 
     // Filter nodes/edges if filter is active
-    graphData.nodes.forEach((node) => {
-      const type = (node.data as any).entity_type || (node.data as any).type || 'device';
-      const label = node.data.label || node.data.id;
-      const isPrivilegeChange = label.toLowerCase().includes('privilege') || label.toLowerCase().includes('admin');
+    targetNodes.forEach((node) => {
+      const formatted = formatNodeLabel(node.data.id, node.data.label);
+      const isPrivilegeChange = formatted.type === 'alert';
+
+      const icon = isPrivilegeChange
+        ? NODE_ICONS.alert
+        : formatted.type === 'user'
+        ? NODE_ICONS.user
+        : formatted.type === 'service'
+        ? NODE_ICONS.service
+        : formatted.type === 'external'
+        ? NODE_ICONS.external
+        : formatted.type === 'database'
+        ? NODE_ICONS.database
+        : NODE_ICONS.device;
 
       elements.push({
         data: {
           id: node.data.id,
-          label: label,
-          type: type,
+          displayLabel: formatted.full,
+          type: formatted.type,
           isAlert: isPrivilegeChange,
+          icon: icon,
         },
       });
     });
 
-    graphData.edges.forEach((edge) => {
+    targetEdges.forEach((edge) => {
       const status = edge.data.status || 'observed';
       if (activeFilter === 'observed' && status !== 'observed') return;
       if (activeFilter === 'inferred' && status !== 'inferred') return;
@@ -98,9 +149,11 @@ export const GraphPage: React.FC = () => {
         {
           selector: 'node',
           style: {
-            'label': 'data(label)',
+            'label': 'data(displayLabel)',
+            'text-wrap': 'wrap',
+            'text-max-width': '120px',
             'color': '#cbd5e1',
-            'font-size': '11px',
+            'font-size': '10px',
             'font-family': 'Inter, sans-serif',
             'font-weight': 600,
             'text-valign': 'bottom',
@@ -108,8 +161,15 @@ export const GraphPage: React.FC = () => {
             'background-color': '#11192c',
             'border-width': 2,
             'border-color': '#3b82f6',
-            'width': 44,
-            'height': 44,
+            'width': 48,
+            'height': 48,
+            'background-image': 'data(icon)',
+            'background-fit': 'contain',
+            'background-clip': 'none',
+            'background-width': '22px',
+            'background-height': '22px',
+            'background-position-x': '50%',
+            'background-position-y': '50%',
           },
         },
         {
@@ -137,23 +197,25 @@ export const GraphPage: React.FC = () => {
           },
         },
         {
-          selector: 'node[type = "ip"], node[type = "external"]',
+          selector: 'node[type = "external"], node[type = "ip"]',
           style: {
-            'background-color': '#2a1215',
-            'border-color': '#f43f5e',
-            'shape': 'hexagon',
+            'background-color': '#1e293b',
+            'border-color': '#38bdf8',
+            'shape': 'ellipse',
           },
         },
         {
           selector: 'node[?isAlert]',
           style: {
-            'background-color': '#450a0a',
+            'background-color': '#7f1d1d',
             'border-color': '#ef4444',
             'border-width': 3,
             'color': '#fca5a5',
-            'width': 54,
-            'height': 54,
+            'width': 58,
+            'height': 58,
             'shape': 'ellipse',
+            'background-width': '26px',
+            'background-height': '26px',
           },
         },
         {
@@ -203,14 +265,23 @@ export const GraphPage: React.FC = () => {
           },
         },
       ],
-      layout: {
-        name: 'dagre',
-        rankDir: 'LR',
-        nodeSep: 60,
-        rankSep: 90,
-        animate: true,
-        animationDuration: 400,
-      } as any,
+      layout: (viewMode === 'overview'
+        ? {
+            name: 'concentric',
+            concentric: (node: any) => (node.data('isAlert') ? 2 : 1),
+            levelWidth: () => 1,
+            minNodeSpacing: 70,
+            animate: true,
+            animationDuration: 400,
+          }
+        : {
+            name: 'dagre',
+            rankDir: 'LR',
+            nodeSep: 70,
+            rankSep: 100,
+            animate: true,
+            animationDuration: 400,
+          }) as any,
     });
 
     cy.on('tap', 'edge', async (evt) => {
@@ -244,7 +315,7 @@ export const GraphPage: React.FC = () => {
     return () => {
       cy.destroy();
     };
-  }, [graphData, activeFilter]);
+  }, [graphData, activeFilter, viewMode]);
 
   const fitView = () => {
     cyRef.current?.fit(undefined, 40);
@@ -307,7 +378,35 @@ export const GraphPage: React.FC = () => {
       {/* Main Graph Canvas Card */}
       <div className="flex-1 card-glow rounded-2xl relative overflow-hidden flex flex-col shadow-2xl">
         {/* Floating Controls Header */}
-        <div className="absolute top-4 left-4 z-20 flex items-center space-x-2">
+        <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2">
+          {/* View Mode Pills (Overview, Focus, Explore) */}
+          <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs">
+            <button
+              onClick={() => setViewMode('overview')}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                viewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setViewMode('focus')}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                viewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Focus
+            </button>
+            <button
+              onClick={() => setViewMode('explore')}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                viewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Explore
+            </button>
+          </div>
+
           {/* Filter Pills */}
           <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs">
             <button

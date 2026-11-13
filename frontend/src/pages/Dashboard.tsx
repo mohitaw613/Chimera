@@ -34,6 +34,7 @@ import {
   EdgeDetail,
 } from '../types';
 import { EdgeEvidencePanel } from '../components/EdgeEvidencePanel';
+import { NODE_ICONS, formatNodeLabel } from '../utils/graphVisuals';
 
 // Register dagre layout
 try {
@@ -159,26 +160,80 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!containerRef.current || !graphData) return;
 
-    // Build cytoscape nodes & edges
+    // Filter nodes/edges based on graphViewMode
+    let targetNodes = graphData.nodes;
+    let targetEdges = graphData.edges;
+
+    if (graphViewMode === 'overview' || graphViewMode === 'focus') {
+      // Find the key alert node (e.g. privilege change or first alert)
+      const alertNode = graphData.nodes.find((n) => {
+        const id = n.data.id.toLowerCase();
+        const lbl = (n.data.label || '').toLowerCase();
+        return id.includes('privilege') || lbl.includes('privilege') || id.startsWith('event:');
+      }) || graphData.nodes[0];
+
+      if (alertNode) {
+        // Collect incident chain: neighbors of alert node + connected user & external IP
+        const alertId = alertNode.data.id;
+        const connectedEdgeTargets = new Set<string>();
+        connectedEdgeTargets.add(alertId);
+
+        graphData.edges.forEach((e) => {
+          if (e.data.source === alertId) connectedEdgeTargets.add(e.data.target);
+          if (e.data.target === alertId) connectedEdgeTargets.add(e.data.source);
+        });
+
+        if (graphViewMode === 'overview') {
+          // In overview, include 2nd hop to reach User -> Workstation -> Service
+          const secondHop = new Set<string>(connectedEdgeTargets);
+          graphData.edges.forEach((e) => {
+            if (connectedEdgeTargets.has(e.data.source)) secondHop.add(e.data.target);
+            if (connectedEdgeTargets.has(e.data.target)) secondHop.add(e.data.source);
+          });
+          // Limit to max 7-8 primary nodes so it stays clear and intuitive
+          const primaryIds = Array.from(secondHop).slice(0, 8);
+          const primarySet = new Set(primaryIds);
+          targetNodes = graphData.nodes.filter((n) => primarySet.has(n.data.id));
+          targetEdges = graphData.edges.filter((e) => primarySet.has(e.data.source) && primarySet.has(e.data.target));
+        } else {
+          // Focus mode: just direct 1-hop
+          targetNodes = graphData.nodes.filter((n) => connectedEdgeTargets.has(n.data.id));
+          targetEdges = graphData.edges.filter((e) => connectedEdgeTargets.has(e.data.source) && connectedEdgeTargets.has(e.data.target));
+        }
+      }
+    }
+
+    // Build elements with icons and friendly labels
     const elements: any[] = [];
 
-    // Distinct nodes styled like cyber radar objects
-    graphData.nodes.forEach((node) => {
-      const type = (node.data as any).entity_type || (node.data as any).type || 'device';
-      const label = node.data.label || node.data.id;
-      const isPrivilegeChange = label.toLowerCase().includes('privilege') || label.toLowerCase().includes('admin');
+    targetNodes.forEach((node) => {
+      const formatted = formatNodeLabel(node.data.id, node.data.label);
+      const isPrivilegeChange = formatted.type === 'alert';
+
+      const icon = isPrivilegeChange
+        ? NODE_ICONS.alert
+        : formatted.type === 'user'
+        ? NODE_ICONS.user
+        : formatted.type === 'service'
+        ? NODE_ICONS.service
+        : formatted.type === 'external'
+        ? NODE_ICONS.external
+        : formatted.type === 'database'
+        ? NODE_ICONS.database
+        : NODE_ICONS.device;
 
       elements.push({
         data: {
           id: node.data.id,
-          label: label,
-          type: type,
+          displayLabel: formatted.full,
+          type: formatted.type,
           isAlert: isPrivilegeChange,
+          icon: icon,
         },
       });
     });
 
-    graphData.edges.forEach((edge) => {
+    targetEdges.forEach((edge) => {
       const status = edge.data.status || 'observed';
       elements.push({
         data: {
@@ -200,20 +255,27 @@ export const Dashboard: React.FC = () => {
         {
           selector: 'node',
           style: {
-            'label': 'data(label)',
-            'color': '#94a3b8',
-            'font-size': '11px',
+            'label': 'data(displayLabel)',
+            'text-wrap': 'wrap',
+            'text-max-width': '110px',
+            'color': '#cbd5e1',
+            'font-size': '10px',
             'font-family': 'Inter, sans-serif',
             'font-weight': 600,
             'text-valign': 'bottom',
             'text-margin-y': 7,
-            'background-color': '#1d293d',
+            'background-color': '#131d31',
             'border-width': 2,
             'border-color': '#3b82f6',
-            'width': 44,
-            'height': 44,
-            'transition-property': 'background-color, border-color, width, height',
-            'transition-duration': 0.2,
+            'width': 48,
+            'height': 48,
+            'background-image': 'data(icon)',
+            'background-fit': 'contain',
+            'background-clip': 'none',
+            'background-width': '22px',
+            'background-height': '22px',
+            'background-position-x': '50%',
+            'background-position-y': '50%',
           },
         },
         {
@@ -241,23 +303,25 @@ export const Dashboard: React.FC = () => {
           },
         },
         {
-          selector: 'node[type = "ip"], node[type = "external"]',
+          selector: 'node[type = "external"], node[type = "ip"]',
           style: {
-            'background-color': '#2a1215',
-            'border-color': '#f43f5e',
-            'shape': 'hexagon',
+            'background-color': '#1e293b',
+            'border-color': '#38bdf8',
+            'shape': 'ellipse',
           },
         },
         {
           selector: 'node[?isAlert]',
           style: {
-            'background-color': '#450a0a',
+            'background-color': '#7f1d1d',
             'border-color': '#ef4444',
             'border-width': 3,
             'color': '#fca5a5',
-            'width': 54,
-            'height': 54,
+            'width': 58,
+            'height': 58,
             'shape': 'ellipse',
+            'background-width': '26px',
+            'background-height': '26px',
           },
         },
         {
@@ -273,11 +337,11 @@ export const Dashboard: React.FC = () => {
             'font-size': '9px',
             'font-family': 'JetBrains Mono, monospace',
             'text-rotation': 'autorotate',
-            'text-background-opacity': 0.8,
+            'text-background-opacity': 0.85,
             'text-background-color': '#080c15',
             'text-background-padding': '3px',
             'text-background-shape': 'roundrectangle',
-            'color': '#64748b',
+            'color': '#94a3b8',
           },
         },
         {
@@ -307,12 +371,23 @@ export const Dashboard: React.FC = () => {
           },
         },
       ],
-      layout: {
-        name: 'dagre',
-        rankDir: 'LR',
-        nodeSep: 50,
-        rankSep: 80,
-      } as any,
+      layout: (graphViewMode === 'overview'
+        ? {
+            name: 'concentric',
+            concentric: (node: any) => (node.data('isAlert') ? 2 : 1),
+            levelWidth: () => 1,
+            minNodeSpacing: 60,
+            animate: true,
+            animationDuration: 400,
+          }
+        : {
+            name: 'dagre',
+            rankDir: 'LR',
+            nodeSep: 60,
+            rankSep: 90,
+            animate: true,
+            animationDuration: 400,
+          }) as any,
     });
 
     cy.on('tap', 'edge', async (evt) => {
@@ -337,7 +412,7 @@ export const Dashboard: React.FC = () => {
     return () => {
       cy.destroy();
     };
-  }, [graphData, activeCase]);
+  }, [graphData, activeCase, graphViewMode]);
 
   // Leading hypothesis and suspicion score calculation
   const leadingHypothesis = hypothesesData?.hypotheses?.find((h) => h.status === 'leading') || hypothesesData?.hypotheses?.[0];
