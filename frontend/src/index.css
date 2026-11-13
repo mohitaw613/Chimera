@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  body {
+    @apply bg-cyber-950 text-slate-100 font-sans min-h-screen overflow-x-hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0b1320;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #233550;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #344b6e;
+  }
+}
+
+/* Epistemic visual borders and indicators */
+.status-border-observed {
+  border-left: 3px solid #10b981;
+}
+
+.status-border-inferred {
+  border-left: 3px dashed #f59e0b;
+}
+
+.status-border-unverified {
+  border-left: 3px dotted #f43f5e;
+}

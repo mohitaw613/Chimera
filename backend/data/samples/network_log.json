@@ -1,0 +1,462 @@
+[
+  {
+    "scenario_key": "I7",
+    "ts": "2026-11-12T02:44:50+00:00",
+    "received_at": "2026-11-12T02:45:20+00:00",
+    "host": "SRV-DB02",
+    "dest_ip": "203.0.113.45",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0039",
+    "ts": "2026-11-12T08:08:14+00:00",
+    "received_at": "2026-11-12T08:08:29+00:00",
+    "host": "WS-104",
+    "dest_ip": "192.168.1.27",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0029",
+    "ts": "2026-11-12T08:12:37+00:00",
+    "received_at": "2026-11-12T08:12:53+00:00",
+    "host": "WS-103",
+    "dest_ip": "192.168.1.31",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0105",
+    "ts": "2026-11-12T08:17:56+00:00",
+    "received_at": "2026-11-12T08:18:01+00:00",
+    "host": "WS-111",
+    "dest_ip": "192.168.1.22",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0061",
+    "ts": "2026-11-12T08:30:06+00:00",
+    "received_at": "2026-11-12T08:30:14+00:00",
+    "host": "WS-106",
+    "dest_ip": "192.168.1.35",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0028",
+    "ts": "2026-11-12T08:41:57+00:00",
+    "received_at": "2026-11-12T08:42:14+00:00",
+    "host": "WS-103",
+    "dest_ip": "192.168.1.31",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0106",
+    "ts": "2026-11-12T08:42:36+00:00",
+    "received_at": "2026-11-12T08:42:53+00:00",
+    "host": "WS-111",
+    "dest_ip": "192.168.1.14",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0038",
+    "ts": "2026-11-12T08:56:53+00:00",
+    "received_at": "2026-11-12T08:57:05+00:00",
+    "host": "WS-104",
+    "dest_ip": "192.168.1.2",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0122",
+    "ts": "2026-11-12T09:09:16+00:00",
+    "received_at": "2026-11-12T09:09:24+00:00",
+    "host": "WS-112",
+    "dest_ip": "192.168.1.50",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0057",
+    "ts": "2026-11-12T09:19:33+00:00",
+    "received_at": "2026-11-12T09:19:43+00:00",
+    "host": "WS-106",
+    "dest_ip": "192.168.1.28",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0116",
+    "ts": "2026-11-12T09:22:34+00:00",
+    "received_at": "2026-11-12T09:22:39+00:00",
+    "host": "WS-112",
+    "dest_ip": "192.168.1.24",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0049",
+    "ts": "2026-11-12T10:08:03+00:00",
+    "received_at": "2026-11-12T10:08:13+00:00",
+    "host": "WS-105",
+    "dest_ip": "192.168.1.26",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0092",
+    "ts": "2026-11-12T10:25:54+00:00",
+    "received_at": "2026-11-12T10:26:12+00:00",
+    "host": "WS-110",
+    "dest_ip": "192.168.1.28",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0108",
+    "ts": "2026-11-12T10:37:47+00:00",
+    "received_at": "2026-11-12T10:37:52+00:00",
+    "host": "WS-111",
+    "dest_ip": "192.168.1.38",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0073",
+    "ts": "2026-11-12T11:02:01+00:00",
+    "received_at": "2026-11-12T11:02:21+00:00",
+    "host": "WS-108",
+    "dest_ip": "192.168.1.23",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0048",
+    "ts": "2026-11-12T11:07:56+00:00",
+    "received_at": "2026-11-12T11:07:59+00:00",
+    "host": "WS-105",
+    "dest_ip": "192.168.1.11",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0026",
+    "ts": "2026-11-12T11:21:10+00:00",
+    "received_at": "2026-11-12T11:21:20+00:00",
+    "host": "WS-103",
+    "dest_ip": "192.168.1.39",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0117",
+    "ts": "2026-11-12T11:39:05+00:00",
+    "received_at": "2026-11-12T11:39:24+00:00",
+    "host": "WS-112",
+    "dest_ip": "192.168.1.11",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0119",
+    "ts": "2026-11-12T12:03:40+00:00",
+    "received_at": "2026-11-12T12:03:59+00:00",
+    "host": "WS-112",
+    "dest_ip": "192.168.1.28",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0015",
+    "ts": "2026-11-12T12:17:18+00:00",
+    "received_at": "2026-11-12T12:17:22+00:00",
+    "host": "WS-102",
+    "dest_ip": "192.168.1.14",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0074",
+    "ts": "2026-11-12T12:30:02+00:00",
+    "received_at": "2026-11-12T12:30:04+00:00",
+    "host": "WS-108",
+    "dest_ip": "192.168.1.42",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0075",
+    "ts": "2026-11-12T12:38:08+00:00",
+    "received_at": "2026-11-12T12:38:10+00:00",
+    "host": "WS-108",
+    "dest_ip": "192.168.1.16",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0017",
+    "ts": "2026-11-12T12:48:36+00:00",
+    "received_at": "2026-11-12T12:48:49+00:00",
+    "host": "WS-102",
+    "dest_ip": "192.168.1.44",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0091",
+    "ts": "2026-11-12T12:49:43+00:00",
+    "received_at": "2026-11-12T12:49:50+00:00",
+    "host": "WS-109",
+    "dest_ip": "192.168.1.8",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0099",
+    "ts": "2026-11-12T13:33:32+00:00",
+    "received_at": "2026-11-12T13:33:43+00:00",
+    "host": "WS-110",
+    "dest_ip": "192.168.1.12",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0066",
+    "ts": "2026-11-12T13:45:07+00:00",
+    "received_at": "2026-11-12T13:45:21+00:00",
+    "host": "WS-107",
+    "dest_ip": "192.168.1.41",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0025",
+    "ts": "2026-11-12T14:09:59+00:00",
+    "received_at": "2026-11-12T14:10:04+00:00",
+    "host": "WS-103",
+    "dest_ip": "192.168.1.44",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0023",
+    "ts": "2026-11-12T14:12:23+00:00",
+    "received_at": "2026-11-12T14:12:27+00:00",
+    "host": "WS-103",
+    "dest_ip": "192.168.1.31",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0112",
+    "ts": "2026-11-12T14:24:18+00:00",
+    "received_at": "2026-11-12T14:24:30+00:00",
+    "host": "WS-111",
+    "dest_ip": "192.168.1.34",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0060",
+    "ts": "2026-11-12T14:34:30+00:00",
+    "received_at": "2026-11-12T14:34:44+00:00",
+    "host": "WS-106",
+    "dest_ip": "192.168.1.35",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0062",
+    "ts": "2026-11-12T14:37:23+00:00",
+    "received_at": "2026-11-12T14:37:30+00:00",
+    "host": "WS-107",
+    "dest_ip": "192.168.1.6",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0033",
+    "ts": "2026-11-12T14:37:50+00:00",
+    "received_at": "2026-11-12T14:38:05+00:00",
+    "host": "WS-104",
+    "dest_ip": "192.168.1.23",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0115",
+    "ts": "2026-11-12T14:58:29+00:00",
+    "received_at": "2026-11-12T14:58:40+00:00",
+    "host": "WS-112",
+    "dest_ip": "192.168.1.37",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0040",
+    "ts": "2026-11-12T15:13:31+00:00",
+    "received_at": "2026-11-12T15:13:39+00:00",
+    "host": "WS-104",
+    "dest_ip": "192.168.1.7",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0088",
+    "ts": "2026-11-12T15:34:34+00:00",
+    "received_at": "2026-11-12T15:34:40+00:00",
+    "host": "WS-109",
+    "dest_ip": "192.168.1.23",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0016",
+    "ts": "2026-11-12T15:35:36+00:00",
+    "received_at": "2026-11-12T15:35:39+00:00",
+    "host": "WS-102",
+    "dest_ip": "192.168.1.29",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0102",
+    "ts": "2026-11-12T15:57:30+00:00",
+    "received_at": "2026-11-12T15:57:47+00:00",
+    "host": "WS-110",
+    "dest_ip": "192.168.1.39",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0019",
+    "ts": "2026-11-12T16:18:24+00:00",
+    "received_at": "2026-11-12T16:18:39+00:00",
+    "host": "WS-102",
+    "dest_ip": "192.168.1.12",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0107",
+    "ts": "2026-11-12T16:24:44+00:00",
+    "received_at": "2026-11-12T16:25:03+00:00",
+    "host": "WS-111",
+    "dest_ip": "192.168.1.24",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0046",
+    "ts": "2026-11-12T16:25:56+00:00",
+    "received_at": "2026-11-12T16:26:11+00:00",
+    "host": "WS-105",
+    "dest_ip": "192.168.1.48",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0067",
+    "ts": "2026-11-12T16:30:20+00:00",
+    "received_at": "2026-11-12T16:30:29+00:00",
+    "host": "WS-107",
+    "dest_ip": "192.168.1.46",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0034",
+    "ts": "2026-11-12T16:30:35+00:00",
+    "received_at": "2026-11-12T16:30:41+00:00",
+    "host": "WS-104",
+    "dest_ip": "192.168.1.25",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0081",
+    "ts": "2026-11-12T16:31:06+00:00",
+    "received_at": "2026-11-12T16:31:11+00:00",
+    "host": "WS-109",
+    "dest_ip": "192.168.1.41",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0043",
+    "ts": "2026-11-12T16:36:37+00:00",
+    "received_at": "2026-11-12T16:36:54+00:00",
+    "host": "WS-105",
+    "dest_ip": "192.168.1.25",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0055",
+    "ts": "2026-11-12T16:38:16+00:00",
+    "received_at": "2026-11-12T16:38:29+00:00",
+    "host": "WS-106",
+    "dest_ip": "192.168.1.47",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  },
+  {
+    "scenario_key": "BG_NET_0069",
+    "ts": "2026-11-12T16:40:48+00:00",
+    "received_at": "2026-11-12T16:41:00+00:00",
+    "host": "WS-107",
+    "dest_ip": "192.168.1.17",
+    "action": "connect",
+    "status": "success",
+    "source": "network_log.json"
+  }
+]

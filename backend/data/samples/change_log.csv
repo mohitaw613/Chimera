@@ -1,0 +1,2 @@
+scenario_key,timestamp,arrival_time,ticket_id,actor,target,action,status,details,source
+DECOY_CHG_1042,2026-11-12T01:50:00+00:00,2026-11-12T01:50:05+00:00,CHG-1042,user_admin_ops,SRV-BACKUP01,maintenance,approved,Scheduled kernel patch on backup server,change_log.csv
