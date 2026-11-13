@@ -236,6 +236,9 @@ export const Dashboard: React.FC = () => {
       });
     });
 
+    const NODE_SIZE = 64;
+    const ALERT_NODE_SIZE = 72;
+
     const cy = cytoscape({
       container: containerRef.current,
       elements: elements,
@@ -247,90 +250,89 @@ export const Dashboard: React.FC = () => {
           style: {
             'label': 'data(displayLabel)',
             'text-wrap': 'wrap',
-            'text-max-width': '120px',
-            'color': '#f8fafc',
-            'font-size': '10px',
+            'text-max-width': '95px',
+            'color': '#cbd5e1',
+            'font-size': '9px',
             'font-family': '"JetBrains Mono", monospace',
             'font-weight': 600,
             'text-valign': 'bottom',
-            'text-margin-y': 8,
+            'text-halign': 'center',
+            'text-margin-y': 10,
             'background-color': '#0e172a',
             'border-width': 2.5,
             'border-color': '#3b82f6',
-            'width': 50,
-            'height': 50,
+            'width': NODE_SIZE,
+            'height': NODE_SIZE,
             'shape': 'ellipse',
+            // Icon stays strictly inside circle at 55% of diameter
             'background-image': 'data(icon)',
             'background-fit': 'contain',
-            'background-clip': 'none',
-            'background-width': '22px',
-            'background-height': '22px',
+            'background-clip': 'node',
+            'background-width': '55%',
+            'background-height': '55%',
             'background-position-x': '50%',
             'background-position-y': '50%',
+            'opacity': 0,
           },
         },
         {
           selector: 'node[type = "user"]',
           style: {
-            'background-color': '#0c162c',
+            'background-color': '#0c1a30',
             'border-color': '#3b82f6',
-            'border-width': 2.5,
           },
         },
         {
           selector: 'node[type = "device"]',
           style: {
-            'background-color': '#16122a',
+            'background-color': '#161228',
             'border-color': '#8b5cf6',
-            'border-width': 2.5,
           },
         },
         {
-          selector: 'node[type = "service"]',
+          selector: 'node[type = "service"], node[type = "database"]',
           style: {
             'background-color': '#0a1d18',
             'border-color': '#10b981',
-            'border-width': 2.5,
           },
         },
         {
           selector: 'node[type = "suspicious"], node[type = "alert"]',
           style: {
-            'background-color': '#2a0e14',
+            'background-color': '#280d12',
             'border-color': '#ef4444',
-            'border-width': 3,
-            'width': 54,
-            'height': 54,
+            'border-width': 3.5,
+            'width': ALERT_NODE_SIZE,
+            'height': ALERT_NODE_SIZE,
           },
         },
         {
-          selector: 'node[id $= "ws-207"], node[id $= "WS-207"]',
+          selector: 'node[type = "external"]',
           style: {
-            'border-color': '#38bdf8',
-            'border-width': 3.5,
-            'width': 58,
-            'height': 58,
+            'background-color': '#280d12',
+            'border-color': '#f97316',
           },
         },
         {
           selector: 'edge',
           style: {
-            'width': 2,
+            'width': 1.8,
             'curve-style': 'bezier',
             'target-arrow-shape': 'triangle',
-            'arrow-scale': 1.0,
-            'line-color': '#3b82f6',
-            'target-arrow-color': '#3b82f6',
+            'arrow-scale': 0.9,
+            'line-color': '#334155',
+            'target-arrow-color': '#334155',
             'label': 'data(label)',
-            'font-size': '10px',
+            'font-size': '9px',
             'font-family': '"IBM Plex Sans", sans-serif',
             'font-weight': 500,
             'text-rotation': 'autorotate',
-            'text-background-opacity': 0.9,
+            'text-background-opacity': 1,
             'text-background-color': '#080b11',
-            'text-background-padding': '3px',
+            'text-background-padding': '4px',
             'text-background-shape': 'roundrectangle',
-            'color': '#94a3b8',
+            'color': '#64748b',
+            'opacity': 0,
           },
         },
         {
@@ -338,44 +340,81 @@ export const Dashboard: React.FC = () => {
           style: {
             'line-color': '#3b82f6',
             'target-arrow-color': '#3b82f6',
+            'color': '#7dd3fc',
           },
         },
         {
           selector: 'edge[status = "inferred"]',
           style: {
             'line-style': 'dashed',
-            'line-dash-pattern': [6, 4],
-            'line-color': '#38bdf8',
-            'target-arrow-color': '#38bdf8',
+            'line-dash-pattern': [8, 5],
+            'line-color': '#475569',
+            'target-arrow-color': '#475569',
+            'color': '#94a3b8',
           },
         },
         {
-          selector: 'edge[label *= "Privilege"], edge[target *= "203."], edge[status = "needs_verification"], edge[status = "suspicious"]',
+          selector: 'edge[label *= "Privilege"], edge[status = "suspicious"]',
           style: {
             'line-color': '#ef4444',
             'target-arrow-color': '#ef4444',
             'color': '#fca5a5',
+            'width': 2.2,
           },
         },
       ],
-      layout: (graphViewMode === 'overview'
-        ? {
-            name: 'concentric',
-            concentric: (node: any) => (node.data('isAlert') ? 2 : 1),
-            levelWidth: () => 1,
-            minNodeSpacing: 60,
-            animate: true,
-            animationDuration: 400,
-          }
-        : {
-            name: 'dagre',
-            rankDir: 'LR',
-            nodeSep: 60,
-            rankSep: 90,
-            animate: true,
-            animationDuration: 400,
-          }) as any,
+      layout: { name: 'null' } as any,
     });
+
+    // Choose layout per view mode
+    const layoutOptions: any = graphViewMode === 'overview'
+      ? {
+          name: 'concentric',
+          concentric: (node: any) => {
+            if (node.data('isAlert')) return 10;
+            if (node.data('type') === 'user') return 7;
+            if (node.data('type') === 'device') return 5;
+            return 3;
+          },
+          levelWidth: () => 2,
+          minNodeSpacing: 100,
+          startAngle: Math.PI / 4,
+          clockwise: true,
+          equidistant: false,
+          padding: 55,
+          animate: false,
+        }
+      : {
+          name: 'dagre',
+          rankDir: 'LR',
+          nodeSep: 100,
+          rankSep: 140,
+          padding: 55,
+          animate: false,
+        };
+
+    const layout = cy.layout(layoutOptions);
+
+    // Staggered fade-in after layout positions nodes
+    layout.one('layoutstop', () => {
+      cy.fit(undefined, 45);
+      cy.nodes().forEach((node, i) => {
+        setTimeout(() => {
+          node.animate(
+            { style: { opacity: 1 } },
+            { duration: 200, easing: 'ease-in-out-cubic' as any }
+          );
+        }, i * 45);
+      });
+      setTimeout(() => {
+        cy.edges().animate(
+          { style: { opacity: 1 } },
+          { duration: 280, easing: 'ease-in-out-cubic' as any }
+        );
+      }, cy.nodes().length * 45 + 50);
+    });
+
+    layout.run();
 
     cy.on('tap', 'edge', async (evt) => {
       const edge = evt.target;
