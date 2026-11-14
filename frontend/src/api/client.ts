@@ -93,8 +93,24 @@ export const api = {
     try {
       const res = await apiClient.get<TimelineResponse>(`/investigations/${investigationId}/timeline`);
       return res.data;
-    } catch {
-      return mockTimeline;
+    } catch (err: any) {
+      if (err.response?.status === 409 || err.response?.status === 404) {
+        return {
+          events: [],
+          arrival_sequence: [],
+          inversions: 0,
+          unordered: [],
+        };
+      }
+      if (!err.response) {
+        return mockTimeline;
+      }
+      return {
+        events: [],
+        arrival_sequence: [],
+        inversions: 0,
+        unordered: [],
+      };
     }
   },
 
@@ -102,8 +118,30 @@ export const api = {
     try {
       const res = await apiClient.get<GraphResponse>(`/investigations/${investigationId}/graph`);
       return res.data;
-    } catch {
-      return mockGraph;
+    } catch (err: any) {
+      if (err.response?.status === 409 || err.response?.status === 404) {
+        return {
+          nodes: [],
+          edges: [],
+          finding: {
+            text: 'Investigation not analyzed yet. Upload evidence and run analysis.',
+            open_gaps: 0,
+            incomplete: true,
+          },
+          legend: {
+            status: ['observed', 'inferred', 'needs_verification'],
+          },
+        };
+      }
+      if (!err.response) {
+        return mockGraph;
+      }
+      return {
+        nodes: [],
+        edges: [],
+        finding: { text: 'Error loading attack graph', open_gaps: 0, incomplete: true },
+        legend: { status: ['observed', 'inferred', 'needs_verification'] },
+      };
     }
   },
 
@@ -111,8 +149,11 @@ export const api = {
     try {
       const res = await apiClient.get<EdgeDetail>(`/investigations/${investigationId}/edges/${edgeId}`);
       return res.data;
-    } catch {
-      return mockEdgeDetail;
+    } catch (err: any) {
+      if (!err.response) {
+        return mockEdgeDetail;
+      }
+      throw err;
     }
   },
 
@@ -120,8 +161,28 @@ export const api = {
     try {
       const res = await apiClient.get<HypothesesOverviewResponse>(`/investigations/${investigationId}/hypotheses`);
       return res.data;
-    } catch {
-      return mockHypothesesOverview;
+    } catch (err: any) {
+      if (err.response?.status === 409 || err.response?.status === 404) {
+        return {
+          hypotheses: [],
+          gaps: [],
+          initial_access: [],
+          finding: {
+            text: 'No hypotheses generated. Investigation requires evidence upload and analysis.',
+            open_gaps: 0,
+            incomplete: true,
+          },
+        };
+      }
+      if (!err.response) {
+        return mockHypothesesOverview;
+      }
+      return {
+        hypotheses: [],
+        gaps: [],
+        initial_access: [],
+        finding: { text: 'Error loading hypotheses', open_gaps: 0, incomplete: true },
+      };
     }
   },
 
@@ -131,8 +192,26 @@ export const api = {
         params: { max_hops: maxHops, include_unverified: true },
       });
       return res.data;
-    } catch {
-      return mockBlastRadius;
+    } catch (err: any) {
+      if (err.response?.status === 409 || err.response?.status === 404) {
+        return {
+          start: entityId,
+          max_hops: maxHops,
+          label: entityId,
+          summary: { directly_associated: 0, indirectly_associated: 0, unverified: 0 },
+          items: [],
+        };
+      }
+      if (!err.response) {
+        return mockBlastRadius;
+      }
+      return {
+        start: entityId,
+        max_hops: maxHops,
+        label: entityId,
+        summary: { directly_associated: 0, indirectly_associated: 0, unverified: 0 },
+        items: [],
+      };
     }
   },
 

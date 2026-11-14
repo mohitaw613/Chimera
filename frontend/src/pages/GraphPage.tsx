@@ -154,6 +154,10 @@ export const GraphPage: React.FC = () => {
             'text-valign': 'bottom',
             'text-halign': 'center',
             'text-margin-y': 10,
+            'text-background-opacity': 0.85,
+            'text-background-color': '#080b11',
+            'text-background-padding': '3px',
+            'text-background-shape': 'roundrectangle',
             'background-color': '#0e172a',
             'border-width': 2.5,
             'border-color': '#3b82f6',
@@ -194,6 +198,17 @@ export const GraphPage: React.FC = () => {
         {
           selector: 'node[type = "external"]',
           style: { 'background-color': '#280d12', 'border-color': '#f97316' },
+        },
+        // Central pivot workstation highlight (WS-207)
+        {
+          selector: 'node[id $= "ws-207"], node[id $= "WS-207"]',
+          style: {
+            'border-color': '#38bdf8',
+            'border-width': 3.5,
+            'background-color': '#0d2238',
+            'width': 66,
+            'height': 66,
+          },
         },
         {
           selector: 'node:selected',
@@ -256,38 +271,24 @@ export const GraphPage: React.FC = () => {
     });
 
     // ── Choose layout ────────────────────────────────────────────────────────
-    const layoutOptions: any = viewMode === 'overview'
-      ? {
-          name: 'concentric',
-          concentric: (node: any) => {
-            if (node.data('isAlert')) return 10;
-            if (node.data('type') === 'user') return 7;
-            if (node.data('type') === 'device') return 5;
-            return 3;
-          },
-          levelWidth: () => 2,
-          minNodeSpacing: 100,
-          startAngle: Math.PI / 2,
-          clockwise: true,
-          padding: 55,
-          animate: false,
-        }
-      : viewMode === 'focus'
+    const layoutOptions: any = viewMode === 'focus'
       ? {
           name: 'dagre',
           rankDir: 'TB',
-          nodeSep: 90,
-          rankSep: 120,
-          padding: 55,
-          animate: false,
+          nodeSep: 80,
+          rankSep: 110,
+          padding: 40,
+          animate: true,
+          animationDuration: 300,
         }
       : {
           name: 'dagre',
           rankDir: 'LR',
-          nodeSep: 100,
-          rankSep: 140,
-          padding: 55,
-          animate: false,
+          nodeSep: 85,
+          rankSep: 130,
+          padding: 45,
+          animate: true,
+          animationDuration: 300,
         };
 
     cy.layout(layoutOptions).run();
@@ -538,9 +539,29 @@ export const GraphPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Cytoscape Container */}
+        {/* Cytoscape Container / Empty State */}
         <div className="relative flex-1 w-full h-full radar-grid">
-          <div ref={containerRef} className="w-full h-full absolute inset-0" />
+          {(!graphData || graphData.nodes.length === 0) ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 space-y-3 z-10">
+              <div className="w-12 h-12 rounded-2xl bg-cyber-900 border border-cyber-800 flex items-center justify-center text-blue-400">
+                <Target className="w-6 h-6 text-slate-500" />
+              </div>
+              <div className="text-sm font-semibold text-slate-200">No Attack Graph Generated</div>
+              <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
+                This investigation has not been analyzed yet. Upload logs and run analysis to reconstruct the evidence-grounded attack graph.
+              </p>
+              <div className="flex items-center space-x-3 pt-2">
+                <Link
+                  to={`/investigations/${investigationId}/upload`}
+                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shadow-blue-500/20"
+                >
+                  Upload Evidence
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div ref={containerRef} className="w-full h-full absolute inset-0" />
+          )}
         </div>
       </div>
 

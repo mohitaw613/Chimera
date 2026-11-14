@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import cytoscape, { Core } from 'cytoscape';
 // @ts-ignore
@@ -72,6 +72,22 @@ export const Dashboard: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
+  const [graphHeight, setGraphHeight] = useState(360);
+  const graphCardRef = useRef<HTMLDivElement>(null);
+
+  // Measure the graph card height once mounted so Cytoscape gets a real pixel height
+  useLayoutEffect(() => {
+    if (!graphCardRef.current) return;
+    const measure = () => {
+      const cardH = graphCardRef.current?.offsetHeight ?? 460;
+      // subtract header (~60px) to get canvas area
+      setGraphHeight(Math.max(240, cardH - 68));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(graphCardRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -240,8 +256,8 @@ export const Dashboard: React.FC = () => {
       });
     });
 
-    const NODE_SIZE = 60;
-    const ALERT_NODE_SIZE = 70;
+    const NODE_SIZE = 58;
+    const ALERT_NODE_SIZE = 68;
 
     const cy = cytoscape({
       container: containerRef.current,
@@ -256,14 +272,18 @@ export const Dashboard: React.FC = () => {
           style: {
             'label': 'data(displayLabel)',
             'text-wrap': 'wrap',
-            'text-max-width': '90px',
-            'color': '#cbd5e1',
-            'font-size': '9px',
+            'text-max-width': '100px',
+            'color': '#f1f5f9',
+            'font-size': '9.5px',
             'font-family': '"JetBrains Mono", monospace',
             'font-weight': 600,
             'text-valign': 'bottom',
             'text-halign': 'center',
             'text-margin-y': 10,
+            'text-background-opacity': 0.85,
+            'text-background-color': '#080b11',
+            'text-background-padding': '3px',
+            'text-background-shape': 'roundrectangle',
             'background-color': '#0e172a',
             'border-width': 2.5,
             'border-color': '#3b82f6',
@@ -305,13 +325,24 @@ export const Dashboard: React.FC = () => {
           selector: 'node[type = "external"]',
           style: { 'background-color': '#280d12', 'border-color': '#f97316' },
         },
+        // Central pivot workstation highlight (WS-207)
+        {
+          selector: 'node[id $= "ws-207"], node[id $= "WS-207"]',
+          style: {
+            'border-color': '#38bdf8',
+            'border-width': 3.5,
+            'background-color': '#0d2238',
+            'width': 66,
+            'height': 66,
+          },
+        },
         {
           selector: 'edge',
           style: {
-            'width': 1.8,
+            'width': 2,
             'curve-style': 'bezier',
             'target-arrow-shape': 'triangle',
-            'arrow-scale': 0.9,
+            'arrow-scale': 0.95,
             'line-color': '#3b82f6',
             'target-arrow-color': '#3b82f6',
             'label': 'data(label)',
@@ -319,11 +350,11 @@ export const Dashboard: React.FC = () => {
             'font-family': '"IBM Plex Sans", sans-serif',
             'font-weight': 500,
             'text-rotation': 'autorotate',
-            'text-background-opacity': 1,
+            'text-background-opacity': 0.95,
             'text-background-color': '#080b11',
             'text-background-padding': '4px',
             'text-background-shape': 'roundrectangle',
-            'color': '#7dd3fc',
+            'color': '#93c5fd',
           },
         },
         {
@@ -349,30 +380,25 @@ export const Dashboard: React.FC = () => {
       layout: { name: 'null' } as any,
     });
 
-    // Run layout then fit — use setTimeout so the container has its CSS height
-    const layoutOptions: any = graphViewMode === 'overview'
+    // Run Dagre layout — Left-to-Right directed flow matching incident reference mockup
+    const layoutOptions: any = graphViewMode === 'focus'
       ? {
-          name: 'concentric',
-          concentric: (node: any) => {
-            if (node.data('isAlert')) return 10;
-            if (node.data('type') === 'user') return 7;
-            if (node.data('type') === 'device') return 5;
-            return 3;
-          },
-          levelWidth: () => 2,
-          minNodeSpacing: 90,
-          startAngle: Math.PI / 2,
-          clockwise: true,
-          padding: 50,
-          animate: false,
+          name: 'dagre',
+          rankDir: 'TB',
+          nodeSep: 80,
+          rankSep: 110,
+          padding: 40,
+          animate: true,
+          animationDuration: 300,
         }
       : {
           name: 'dagre',
           rankDir: 'LR',
-          nodeSep: 90,
+          nodeSep: 85,
           rankSep: 130,
-          padding: 50,
-          animate: false,
+          padding: 45,
+          animate: true,
+          animationDuration: 300,
         };
 
     cy.layout(layoutOptions).run();
@@ -381,7 +407,7 @@ export const Dashboard: React.FC = () => {
     setTimeout(() => {
       cy.resize();
       cy.fit(undefined, 40);
-    }, 150);
+    }, 120);
 
     cy.on('tap', 'edge', async (evt) => {
       const edge = evt.target;
@@ -405,7 +431,7 @@ export const Dashboard: React.FC = () => {
     return () => {
       cy.destroy();
     };
-  }, [graphData, activeCase, graphViewMode]);
+  }, [graphData, activeCase, graphViewMode, graphHeight]);
 
   const fitView = () => {
     cyRef.current?.resize();
@@ -664,7 +690,7 @@ export const Dashboard: React.FC = () => {
         {/* Left Column (8 cols): Attack Graph + Event Timeline */}
         <div className="lg:col-span-8 space-y-6">
           {/* Attack Graph Card */}
-          <div className="card-glow rounded-2xl p-5 relative overflow-hidden flex flex-col h-[460px]">
+          <div ref={graphCardRef} className="card-glow rounded-2xl p-5 flex flex-col">
             {/* Graph Card Header matching the reference screenshot */}
             <div className="flex flex-wrap items-center justify-between pb-3 border-b border-cyber-800/80 z-10 gap-3">
               <div className="flex items-center space-x-2.5">
@@ -762,10 +788,39 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Cytoscape Radar Canvas */}
-            <div className="relative flex-1 w-full min-h-0">
-              <div ref={containerRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
-            </div>
+            {/* Cytoscape Canvas / Empty State */}
+            {(!graphData || graphData.nodes.length === 0) ? (
+              <div className="flex flex-col items-center justify-center text-center p-8 space-y-3 min-h-[340px]">
+                <div className="w-12 h-12 rounded-2xl bg-cyber-900 border border-cyber-800 flex items-center justify-center text-blue-400">
+                  <Share2 className="w-6 h-6 text-slate-500" />
+                </div>
+                <div className="text-sm font-semibold text-slate-200">No Attack Graph Generated</div>
+                <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
+                  This investigation has not been analyzed yet. Upload logs and click{' '}
+                  <span className="text-blue-400 font-semibold font-mono">Run Analysis</span> to reconstruct the evidence-grounded attack graph.
+                </p>
+                <div className="flex items-center space-x-3 pt-2">
+                  <Link
+                    to={`/investigations/${activeCase?.id || ''}/upload`}
+                    className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shadow-blue-500/20"
+                  >
+                    Upload Evidence
+                  </Link>
+                  <button
+                    onClick={handleRunAnalysis}
+                    disabled={analyzing}
+                    className="px-3.5 py-1.5 rounded-xl bg-cyber-850 hover:bg-cyber-800 border border-cyber-800 text-slate-300 text-xs font-semibold transition-colors"
+                  >
+                    Run Analysis
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={containerRef}
+                style={{ width: '100%', height: `${graphHeight}px`, display: 'block' }}
+              />
+            )}
           </div>
 
           {/* Event Timeline Stepper Card */}
