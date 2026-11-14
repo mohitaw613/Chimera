@@ -7,11 +7,8 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  Shield,
   Target,
   RefreshCw,
-  Info,
-  ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { EdgeDetail, GraphResponse, Investigation } from '../types';
@@ -371,238 +368,194 @@ export const GraphPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto h-[calc(100vh-7.5rem)] flex flex-col">
-      {/* Clean Header Bar */}
-      <div className="card-glow rounded-2xl p-5 flex-shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center space-x-2 text-xs text-slate-400 font-medium mb-1">
-              <Link to="/" className="hover:text-slate-200">Investigations</Link>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-              <span className="text-blue-400 font-mono">#{investigationId}</span>
-            </div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Attack Graph & Provenance</h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Interactive topology of reconstructed entities, relationships, and grounding evidence.
-            </p>
-          </div>
+    <div className="w-full h-full relative overflow-hidden flex flex-col">
+      {/* Floating Controls Header */}
+      <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2">
+        {investigations.length > 1 && (
+          <select
+            aria-label="Select Investigation"
+            value={investigationId || ''}
+            onChange={(e) => navigate(`/investigations/${e.target.value}/graph`)}
+            className="text-xs font-semibold text-white bg-cyber-950/90 border border-cyber-800 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer backdrop-blur shadow-lg"
+          >
+            {investigations.map((inv) => (
+              <option key={inv.id} value={inv.id} className="bg-cyber-900 text-white">
+                {inv.name} ({inv.status})
+              </option>
+            ))}
+          </select>
+        )}
 
-          <div className="flex items-center space-x-3">
-            {investigations.length > 1 && (
-              <select
-                aria-label="Select Investigation"
-                value={investigationId || ''}
-                onChange={(e) => navigate(`/investigations/${e.target.value}/graph`)}
-                className="text-xs font-semibold text-white bg-cyber-900 border border-cyber-800 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-              >
-                {investigations.map((inv) => (
-                  <option key={inv.id} value={inv.id} className="bg-cyber-900 text-white">
-                    {inv.name} ({inv.status})
-                  </option>
-                ))}
-              </select>
-            )}
-            <Link
-              to={`/investigations/${investigationId}/hypotheses`}
-              className="px-3.5 py-2 rounded-xl bg-cyber-850 hover:bg-cyber-800 text-slate-300 hover:text-white text-xs font-semibold border border-cyber-800 transition-colors"
+        {/* View Mode Pills (Overview, Focus, Explore) */}
+        <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs shadow-lg">
+          <button
+            onClick={() => setViewMode('overview')}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              viewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setViewMode('focus')}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              viewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Focus
+          </button>
+          <button
+            onClick={() => setViewMode('explore')}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              viewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Explore
+          </button>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs shadow-lg">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              activeFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            All Edges
+          </button>
+          <button
+            onClick={() => setActiveFilter('observed')}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              activeFilter === 'observed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Observed
+          </button>
+          <button
+            onClick={() => setActiveFilter('inferred')}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              activeFilter === 'inferred' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Inferred
+          </button>
+          <button
+            onClick={() => setActiveFilter('suspicious')}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              activeFilter === 'suspicious' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Suspicious
+          </button>
+        </div>
+      </div>
+
+      {/* Floating Zoom & Fit Tools */}
+      <div className="absolute top-4 right-4 z-20 flex items-center space-x-1.5 bg-cyber-950/90 border border-cyber-800 p-1 rounded-xl backdrop-blur shadow-lg">
+        <button
+          onClick={zoomIn}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
+          aria-label="Zoom in"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          onClick={zoomOut}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
+          aria-label="Zoom out"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <button
+          onClick={fitView}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
+          aria-label="Fit to screen"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={loadGraph}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
+          aria-label="Reload graph"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Selected Node Action Card */}
+      {selectedNodeId && (
+        <div className="absolute bottom-6 left-6 z-20 bg-cyber-950/95 border border-blue-500/40 p-4 rounded-2xl shadow-2xl max-w-sm backdrop-blur space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold text-slate-400">Selected Entity</span>
+            <button
+              onClick={() => setSelectedNodeId(null)}
+              className="text-slate-500 hover:text-white text-xs"
             >
-              Hypotheses & Gaps
-            </Link>
+              ✕
+            </button>
+          </div>
+          <div className="font-mono text-sm font-semibold text-white truncate">{selectedNodeId}</div>
+          <div className="pt-2 flex justify-end">
             <Link
-              to={`/investigations/${investigationId}/blast-radius`}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition-all flex items-center space-x-1.5"
+              to={`/investigations/${investigationId}/blast-radius?start=${selectedNodeId}`}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1"
             >
               <Target className="w-3.5 h-3.5" />
               <span>Blast Radius</span>
             </Link>
           </div>
         </div>
+      )}
 
-        {/* Epistemic Finding Callout */}
-        {graphData?.finding && (
-          <div className="mt-4 p-3 rounded-xl bg-cyber-950 border border-cyber-800 flex items-start space-x-3 text-xs text-slate-300">
-            <Shield className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="leading-relaxed">
-              <span className="font-semibold text-white">Investigation Finding: </span>
-              {graphData.finding.text}
-            </div>
-          </div>
-        )}
+      {/* Status Legend */}
+      <div className="absolute bottom-4 right-4 z-20 bg-cyber-950/90 border border-cyber-800 p-3 rounded-xl backdrop-blur text-xs space-y-2 shadow-lg pointer-events-none">
+        <div className="font-bold uppercase tracking-wider text-[10px] text-slate-400">Epistemic Status</div>
+        <div className="flex items-center space-x-2">
+          <span className="w-6 h-0.5 bg-blue-500 rounded-full inline-block"></span>
+          <span className="text-slate-300 font-mono text-[11px]">Observed (Direct)</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="w-6 border-b border-dashed border-sky-400 inline-block"></span>
+          <span className="text-sky-400 font-mono text-[11px]">Inferred (Proximity)</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="w-6 border-b border-dashed border-rose-500 inline-block"></span>
+          <span className="text-rose-400 font-mono text-[11px]">Suspicious (Unverified)</span>
+        </div>
       </div>
 
-      {/* Main Graph Canvas Card */}
-      <div className="flex-1 card-glow rounded-2xl relative overflow-hidden flex flex-col shadow-2xl">
-        {/* Floating Controls Header */}
-        <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2">
-          {/* View Mode Pills (Overview, Focus, Explore) */}
-          <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs">
-            <button
-              onClick={() => setViewMode('overview')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setViewMode('focus')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-            >
-              Focus
-            </button>
-            <button
-              onClick={() => setViewMode('explore')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-            >
-              Explore
-            </button>
-          </div>
-
-          {/* Filter Pills */}
-          <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs">
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-            >
-              All Edges
-            </button>
-            <button
-              onClick={() => setActiveFilter('observed')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'observed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-            >
-              Observed
-            </button>
-            <button
-              onClick={() => setActiveFilter('inferred')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'inferred' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-            >
-              Inferred
-            </button>
-            <button
-              onClick={() => setActiveFilter('suspicious')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'suspicious' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-            >
-              Suspicious
-            </button>
-          </div>
-
-          <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-cyber-950/90 border border-cyber-800 text-xs text-slate-400 backdrop-blur">
-            <Info className="w-3.5 h-3.5 text-blue-400" />
-            <span>Click any edge to view evidence rows</span>
-          </div>
-        </div>
-
-        {/* Floating Zoom & Fit Tools */}
-        <div className="absolute top-4 right-4 z-20 flex items-center space-x-1.5 bg-cyber-950/90 border border-cyber-800 p-1 rounded-xl backdrop-blur">
-          <button
-            onClick={zoomIn}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
-            aria-label="Zoom in"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            onClick={zoomOut}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
-            aria-label="Zoom out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <button
-            onClick={fitView}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
-            aria-label="Fit to screen"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={loadGraph}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-cyber-850 transition-colors"
-            aria-label="Reload graph"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Selected Node Action Card */}
-        {selectedNodeId && (
-          <div className="absolute bottom-6 left-6 z-20 bg-cyber-950/95 border border-blue-500/40 p-4 rounded-2xl shadow-2xl max-w-sm backdrop-blur space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Selected Entity</span>
-              <button
-                onClick={() => setSelectedNodeId(null)}
-                className="text-slate-500 hover:text-white text-xs"
-              >
-                ✕
-              </button>
+      {/* Cytoscape Container / Empty State */}
+      <div className="relative flex-1 w-full h-full radar-grid">
+        {(!graphData || graphData.nodes.length === 0) ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 space-y-3 z-10">
+            <div className="w-12 h-12 rounded-2xl bg-cyber-900 border border-cyber-800 flex items-center justify-center text-blue-400">
+              <Target className="w-6 h-6 text-slate-500" />
             </div>
-            <div className="font-mono text-sm font-semibold text-white truncate">{selectedNodeId}</div>
-            <div className="pt-2 flex justify-end">
+            <div className="text-sm font-semibold text-slate-200">No Attack Graph Generated</div>
+            <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
+              {loadError || (analysisRequired
+                ? 'This investigation is not analyzed yet, or new evidence has made its analysis stale. Run analysis from the investigation dashboard first.'
+                : 'No graph entities were produced by the completed analysis.')}
+            </p>
+            <div className="flex items-center space-x-3 pt-2">
               <Link
-                to={`/investigations/${investigationId}/blast-radius?start=${selectedNodeId}`}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1"
+                to={`/investigations/${investigationId}/upload`}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shadow-blue-500/20"
               >
-                <Target className="w-3.5 h-3.5" />
-                <span>Blast Radius</span>
+                Upload Evidence
+              </Link>
+              <Link
+                to={`/investigations/${investigationId}`}
+                className="px-3.5 py-1.5 rounded-xl bg-cyber-850 hover:bg-cyber-800 border border-cyber-800 text-slate-300 text-xs font-semibold transition-colors"
+              >
+                Go to Dashboard
               </Link>
             </div>
           </div>
+        ) : (
+          <div ref={containerRef} className="w-full h-full absolute inset-0" />
         )}
-
-        {/* Status Legend */}
-        <div className="absolute bottom-4 right-4 z-20 bg-cyber-950/90 border border-cyber-800 p-3 rounded-xl backdrop-blur text-xs space-y-2 shadow-lg pointer-events-none">
-          <div className="font-bold uppercase tracking-wider text-[10px] text-slate-400">Epistemic Status</div>
-          <div className="flex items-center space-x-2">
-            <span className="w-6 h-0.5 bg-blue-500 rounded-full inline-block"></span>
-            <span className="text-slate-300 font-mono text-[11px]">Observed (Direct)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-6 border-b border-dashed border-sky-400 inline-block"></span>
-            <span className="text-sky-400 font-mono text-[11px]">Inferred (Proximity)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-6 border-b border-dashed border-rose-500 inline-block"></span>
-            <span className="text-rose-400 font-mono text-[11px]">Suspicious (Unverified)</span>
-          </div>
-        </div>
-
-        {/* Cytoscape Container / Empty State */}
-        <div className="relative flex-1 w-full h-full radar-grid">
-          {(!graphData || graphData.nodes.length === 0) ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 space-y-3 z-10">
-              <div className="w-12 h-12 rounded-2xl bg-cyber-900 border border-cyber-800 flex items-center justify-center text-blue-400">
-                <Target className="w-6 h-6 text-slate-500" />
-              </div>
-              <div className="text-sm font-semibold text-slate-200">No Attack Graph Generated</div>
-              <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-                {loadError || (analysisRequired
-                  ? 'This investigation is not analyzed yet, or new evidence has made its analysis stale. Run analysis from the investigation dashboard first.'
-                  : 'No graph entities were produced by the completed analysis.')}
-              </p>
-              <div className="flex items-center space-x-3 pt-2">
-                <Link
-                  to={`/investigations/${investigationId}/upload`}
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shadow-blue-500/20"
-                >
-                  Upload Evidence
-                </Link>
-                <Link
-                  to={`/investigations/${investigationId}`}
-                  className="px-3.5 py-1.5 rounded-xl bg-cyber-850 hover:bg-cyber-800 border border-cyber-800 text-slate-300 text-xs font-semibold transition-colors"
-                >
-                  Go to Dashboard
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div ref={containerRef} className="w-full h-full absolute inset-0" />
-          )}
-        </div>
       </div>
 
       {/* Edge Evidence Panel Drawer */}
