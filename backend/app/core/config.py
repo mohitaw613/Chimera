@@ -12,10 +12,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_NAME: str = "CHIMERA"
+    # Render sets DATABASE_URL for Postgres; default falls back to SQLite for local dev
     DATABASE_URL: str = "sqlite:///./chimera.db"
     UPLOAD_DIR: str = "./data/uploads"
     MAX_UPLOAD_MB: int = 25
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:3000"
+    # In production set this to your Vercel frontend URL, e.g. https://chimera.vercel.app
+    CORS_ORIGINS: str = (
+        "http://localhost:5173,http://localhost:5174,http://localhost:3000,"
+        "http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:3000"
+    )
     ENABLE_LLM: bool = False
     LLM_API_KEY: str = ""
 

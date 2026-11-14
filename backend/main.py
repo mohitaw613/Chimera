@@ -23,7 +23,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS configuration
+# CORS configuration — allow_origin_regex covers localhost in dev;
+# in production CORS_ORIGINS env var should list the Vercel frontend URL.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
