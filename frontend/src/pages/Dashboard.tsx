@@ -112,8 +112,8 @@ export const Dashboard: React.FC = () => {
         target = list[0];
       }
       setActiveCase(target);
-
       if (target) {
+        localStorage.setItem('activeInvestigationId', target.id);
         await loadCaseDetails(target.id);
       }
     } catch (err) {
@@ -185,8 +185,38 @@ export const Dashboard: React.FC = () => {
     let targetNodes = graphData.nodes;
     let targetEdges = graphData.edges;
 
-    if (graphViewMode === 'overview' || graphViewMode === 'focus') {
-      // Find the key alert node (e.g. privilege change or first alert)
+    if (graphViewMode === 'overview') {
+      // Prioritize the core incident attack path:
+      // 1. Alert events (privilege change)
+      // 2. High-signal actors & pivot workstations (user_jdoe, WS-207)
+      // 3. Target services & servers (FileShare, SRV-FILE01, SRV-DB02, svc_backup)
+      // 4. Malicious egress IP (203.0.113.45)
+      const scored = graphData.nodes.map((n) => {
+        const nid = n.data.id.toLowerCase();
+        const lbl = (n.data.label || '').toLowerCase();
+        const sigs = n.data.signal_ids || [];
+        let score = sigs.length * 2;
+        if (nid.includes('privilege') || lbl.includes('privilege') || nid.startsWith('event:')) score += 100;
+        if (nid.includes('203.0.113') || nid.startsWith('external:')) score += 50;
+        if (nid.includes('ws-207')) score += 35;
+        if (nid.includes('jdoe')) score += 40;
+        if (nid.includes('fileshare')) score += 30;
+        if (nid.includes('svc_backup')) score += 25;
+        if (nid.includes('srv-file') || nid.includes('srv-db')) score += 20;
+        if (n.data.suspicious) score += 10;
+        return { node: n, score };
+      });
+
+      scored.sort((a, b) => b.score - a.score);
+      const topNodes = scored.slice(0, 9).map((s) => s.node);
+      const topIds = new Set(topNodes.map((n) => n.data.id));
+
+      targetNodes = topNodes;
+      targetEdges = graphData.edges.filter(
+        (e) => topIds.has(e.data.source) && topIds.has(e.data.target)
+      );
+    } else if (graphViewMode === 'focus') {
+      // Direct 1-hop around alert or pivot node
       const alertNode = graphData.nodes.find((n) => {
         const id = n.data.id.toLowerCase();
         const lbl = (n.data.label || '').toLowerCase();
@@ -194,33 +224,16 @@ export const Dashboard: React.FC = () => {
       }) || graphData.nodes[0];
 
       if (alertNode) {
-        // Collect incident chain: neighbors of alert node + connected user & external IP
         const alertId = alertNode.data.id;
-        const connectedEdgeTargets = new Set<string>();
-        connectedEdgeTargets.add(alertId);
-
+        const connectedEdgeTargets = new Set<string>([alertId]);
         graphData.edges.forEach((e) => {
           if (e.data.source === alertId) connectedEdgeTargets.add(e.data.target);
           if (e.data.target === alertId) connectedEdgeTargets.add(e.data.source);
         });
-
-        if (graphViewMode === 'overview') {
-          // In overview, include 2nd hop to reach User -> Workstation -> Service
-          const secondHop = new Set<string>(connectedEdgeTargets);
-          graphData.edges.forEach((e) => {
-            if (connectedEdgeTargets.has(e.data.source)) secondHop.add(e.data.target);
-            if (connectedEdgeTargets.has(e.data.target)) secondHop.add(e.data.source);
-          });
-          // Limit to max 7-8 primary nodes so it stays clear and intuitive
-          const primaryIds = Array.from(secondHop).slice(0, 8);
-          const primarySet = new Set(primaryIds);
-          targetNodes = graphData.nodes.filter((n) => primarySet.has(n.data.id));
-          targetEdges = graphData.edges.filter((e) => primarySet.has(e.data.source) && primarySet.has(e.data.target));
-        } else {
-          // Focus mode: just direct 1-hop
-          targetNodes = graphData.nodes.filter((n) => connectedEdgeTargets.has(n.data.id));
-          targetEdges = graphData.edges.filter((e) => connectedEdgeTargets.has(e.data.source) && connectedEdgeTargets.has(e.data.target));
-        }
+        targetNodes = graphData.nodes.filter((n) => connectedEdgeTargets.has(n.data.id));
+        targetEdges = graphData.edges.filter(
+          (e) => connectedEdgeTargets.has(e.data.source) && connectedEdgeTargets.has(e.data.target)
+        );
       }
     }
 
@@ -495,6 +508,7 @@ export const Dashboard: React.FC = () => {
                   const sel = investigations.find((i) => i.id === e.target.value);
                   if (sel) {
                     setActiveCase(sel);
+                    localStorage.setItem('activeInvestigationId', sel.id);
                     loadCaseDetails(sel.id);
                   }
                 }}

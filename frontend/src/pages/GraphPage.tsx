@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import cytoscape, { Core } from 'cytoscape';
 // @ts-ignore
 import dagre from 'cytoscape-dagre';
@@ -14,7 +14,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { EdgeDetail, GraphResponse } from '../types';
+import { EdgeDetail, GraphResponse, Investigation } from '../types';
 import { EdgeEvidencePanel } from '../components/EdgeEvidencePanel';
 import { formatNodeLabel, formatEdgeLabel } from '../utils/graphVisuals';
 
@@ -27,10 +27,12 @@ try {
 
 export const GraphPage: React.FC = () => {
   const { id: investigationId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
 
+  const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
   const [edgeDetail, setEdgeDetail] = useState<EdgeDetail | null>(null);
   const [edgeLoading, setEdgeLoading] = useState(false);
@@ -44,22 +46,73 @@ export const GraphPage: React.FC = () => {
   }, [investigationId]);
 
   const loadGraph = async () => {
-    if (!investigationId) return;
     try {
-      const data = await api.getGraph(investigationId);
-      setGraphData(data);
+      const list = await api.listInvestigations();
+      setInvestigations(list);
+
+      let targetId = investigationId;
+      // If no valid ID is present or if it's the dummy placeholder, pick the active or first analyzed case
+      if (!targetId || targetId === 'inv_synth_001' || !list.some((i) => i.id === targetId)) {
+        const stored = localStorage.getItem('activeInvestigationId');
+        if (stored && list.some((i) => i.id === stored)) {
+          targetId = stored;
+        } else if (list.length > 0) {
+          const analyzed = list.find((i) => i.status === 'analyzed') || list[0];
+          targetId = analyzed.id;
+        }
+      }
+
+      if (targetId && targetId !== investigationId) {
+        navigate(`/investigations/${targetId}/graph`, { replace: true });
+        return;
+      }
+
+      if (targetId) {
+        const data = await api.getGraph(targetId);
+        setGraphData(data);
+      }
     } catch (err) {
       console.error('Failed to load attack graph', err);
     }
   };
 
   useEffect(() => {
-    if (!containerRef.current || !graphData) return;
+    if (!containerRef.current || !graphData || graphData.nodes.length === 0) return;
 
     let targetNodes = graphData.nodes;
     let targetEdges = graphData.edges;
 
-    if (viewMode === 'overview' || viewMode === 'focus') {
+    if (viewMode === 'overview') {
+      // Prioritize primary incident attack chain:
+      // 1. Alert events (privilege change)
+      // 2. High-signal actors & pivot workstations (user_jdoe, WS-207)
+      // 3. Target services & servers (FileShare, SRV-FILE01, SRV-DB02, svc_backup)
+      // 4. Malicious egress IP (203.0.113.45)
+      const scored = graphData.nodes.map((n) => {
+        const nid = n.data.id.toLowerCase();
+        const lbl = (n.data.label || '').toLowerCase();
+        const sigs = n.data.signal_ids || [];
+        let score = sigs.length * 2;
+        if (nid.includes('privilege') || lbl.includes('privilege') || nid.startsWith('event:')) score += 100;
+        if (nid.includes('203.0.113') || nid.startsWith('external:')) score += 50;
+        if (nid.includes('ws-207')) score += 35;
+        if (nid.includes('jdoe')) score += 40;
+        if (nid.includes('fileshare')) score += 30;
+        if (nid.includes('svc_backup')) score += 25;
+        if (nid.includes('srv-file') || nid.includes('srv-db')) score += 20;
+        if (n.data.suspicious) score += 10;
+        return { node: n, score };
+      });
+
+      scored.sort((a, b) => b.score - a.score);
+      const topNodes = scored.slice(0, 9).map((s) => s.node);
+      const topIds = new Set(topNodes.map((n) => n.data.id));
+
+      targetNodes = topNodes;
+      targetEdges = graphData.edges.filter(
+        (e) => topIds.has(e.data.source) && topIds.has(e.data.target)
+      );
+    } else if (viewMode === 'focus') {
       const alertNode = graphData.nodes.find((n) => {
         const id = n.data.id.toLowerCase();
         const lbl = (n.data.label || '').toLowerCase();
@@ -68,28 +121,15 @@ export const GraphPage: React.FC = () => {
 
       if (alertNode) {
         const alertId = alertNode.data.id;
-        const connectedEdgeTargets = new Set<string>();
-        connectedEdgeTargets.add(alertId);
-
+        const connectedEdgeTargets = new Set<string>([alertId]);
         graphData.edges.forEach((e) => {
           if (e.data.source === alertId) connectedEdgeTargets.add(e.data.target);
           if (e.data.target === alertId) connectedEdgeTargets.add(e.data.source);
         });
-
-        if (viewMode === 'overview') {
-          const secondHop = new Set<string>(connectedEdgeTargets);
-          graphData.edges.forEach((e) => {
-            if (connectedEdgeTargets.has(e.data.source)) secondHop.add(e.data.target);
-            if (connectedEdgeTargets.has(e.data.target)) secondHop.add(e.data.source);
-          });
-          const primaryIds = Array.from(secondHop).slice(0, 10);
-          const primarySet = new Set(primaryIds);
-          targetNodes = graphData.nodes.filter((n) => primarySet.has(n.data.id));
-          targetEdges = graphData.edges.filter((e) => primarySet.has(e.data.source) && primarySet.has(e.data.target));
-        } else {
-          targetNodes = graphData.nodes.filter((n) => connectedEdgeTargets.has(n.data.id));
-          targetEdges = graphData.edges.filter((e) => connectedEdgeTargets.has(e.data.source) && connectedEdgeTargets.has(e.data.target));
-        }
+        targetNodes = graphData.nodes.filter((n) => connectedEdgeTargets.has(n.data.id));
+        targetEdges = graphData.edges.filter(
+          (e) => connectedEdgeTargets.has(e.data.source) && connectedEdgeTargets.has(e.data.target)
+        );
       }
     }
 
@@ -363,6 +403,20 @@ export const GraphPage: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
+            {investigations.length > 1 && (
+              <select
+                aria-label="Select Investigation"
+                value={investigationId || ''}
+                onChange={(e) => navigate(`/investigations/${e.target.value}/graph`)}
+                className="text-xs font-semibold text-white bg-cyber-900 border border-cyber-800 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+              >
+                {investigations.map((inv) => (
+                  <option key={inv.id} value={inv.id} className="bg-cyber-900 text-white">
+                    {inv.name} ({inv.status})
+                  </option>
+                ))}
+              </select>
+            )}
             <Link
               to={`/investigations/${investigationId}/hypotheses`}
               className="px-3.5 py-2 rounded-xl bg-cyber-850 hover:bg-cyber-800 text-slate-300 hover:text-white text-xs font-semibold border border-cyber-800 transition-colors"

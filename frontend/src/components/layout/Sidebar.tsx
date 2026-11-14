@@ -17,8 +17,24 @@ export const Sidebar: React.FC = () => {
   const match = location.pathname.match(/\/investigations\/([^/]+)/);
   const currentInvId = paramId || (match ? match[1] : undefined);
 
-  // Default target for investigation routes if none selected yet
-  const targetId = currentInvId || 'inv_synth_001';
+  const [activeCaseId, setActiveCaseId] = React.useState<string>(() => {
+    return currentInvId || localStorage.getItem('activeInvestigationId') || '';
+  });
+
+  React.useEffect(() => {
+    if (currentInvId) {
+      setActiveCaseId(currentInvId);
+      localStorage.setItem('activeInvestigationId', currentInvId);
+    } else {
+      const stored = localStorage.getItem('activeInvestigationId');
+      if (stored) {
+        setActiveCaseId(stored);
+      }
+    }
+  }, [currentInvId, location.pathname]);
+
+  // Use the active case ID or fallback to the latest active case
+  const targetId = currentInvId || activeCaseId || 'inv_f02a4208e20d';
 
   const navItems = [
     { label: 'Dashboard', to: '/', icon: LayoutDashboard, exact: true },
