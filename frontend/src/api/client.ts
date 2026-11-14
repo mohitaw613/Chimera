@@ -10,12 +10,6 @@ import {
   CanonicalEvent,
 } from '../types';
 import {
-  mockInvestigation,
-  mockDashboardSummary,
-  mockTimeline,
-  mockGraph,
-  mockEdgeDetail,
-  mockHypothesesOverview,
   mockBlastRadius,
 } from '../mocks/fixtures';
 
@@ -24,9 +18,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 export const api = {
@@ -36,7 +27,14 @@ export const api = {
       const res = await apiClient.get<DashboardSummary>('/dashboard');
       return res.data;
     } catch {
-      return mockDashboardSummary;
+      return {
+        total_investigations: 0,
+        total_events: 0,
+        total_signals: 0,
+        total_entities: 0,
+        open_gaps: 0,
+        recent: [],
+      };
     }
   },
 
@@ -45,17 +43,13 @@ export const api = {
       const res = await apiClient.get<Investigation[]>('/investigations');
       return res.data;
     } catch {
-      return [mockInvestigation];
+      return [];
     }
   },
 
   async getInvestigation(id: string): Promise<Investigation> {
-    try {
-      const res = await apiClient.get<Investigation>(`/investigations/${id}`);
-      return res.data;
-    } catch {
-      return mockInvestigation;
-    }
+    const res = await apiClient.get<Investigation>(`/investigations/${id}`);
+    return res.data;
   },
 
   async createInvestigation(data: { name: string; description?: string; is_synthetic?: boolean }): Promise<Investigation> {
@@ -69,9 +63,8 @@ export const api = {
 
   // Evidence
   async uploadFiles(investigationId: string, formData: FormData) {
-    const res = await apiClient.post(`/investigations/${investigationId}/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // Let the browser/Axios add the multipart boundary for this FormData body.
+    const res = await apiClient.post(`/investigations/${investigationId}/upload`, formData);
     return res.data;
   },
 
@@ -93,18 +86,7 @@ export const api = {
     try {
       const res = await apiClient.get<TimelineResponse>(`/investigations/${investigationId}/timeline`);
       return res.data;
-    } catch (err: any) {
-      if (err.response?.status === 409 || err.response?.status === 404) {
-        return {
-          events: [],
-          arrival_sequence: [],
-          inversions: 0,
-          unordered: [],
-        };
-      }
-      if (!err.response) {
-        return mockTimeline;
-      }
+    } catch {
       return {
         events: [],
         arrival_sequence: [],
@@ -115,75 +97,18 @@ export const api = {
   },
 
   async getGraph(investigationId: string): Promise<GraphResponse> {
-    try {
-      const res = await apiClient.get<GraphResponse>(`/investigations/${investigationId}/graph`);
-      return res.data;
-    } catch (err: any) {
-      if (err.response?.status === 409 || err.response?.status === 404) {
-        return {
-          nodes: [],
-          edges: [],
-          finding: {
-            text: 'Investigation not analyzed yet. Upload evidence and run analysis.',
-            open_gaps: 0,
-            incomplete: true,
-          },
-          legend: {
-            status: ['observed', 'inferred', 'needs_verification'],
-          },
-        };
-      }
-      if (!err.response) {
-        return mockGraph;
-      }
-      return {
-        nodes: [],
-        edges: [],
-        finding: { text: 'Error loading attack graph', open_gaps: 0, incomplete: true },
-        legend: { status: ['observed', 'inferred', 'needs_verification'] },
-      };
-    }
+    const res = await apiClient.get<GraphResponse>(`/investigations/${investigationId}/graph`);
+    return res.data;
   },
 
   async getEdgeDetail(investigationId: string, edgeId: string): Promise<EdgeDetail> {
-    try {
-      const res = await apiClient.get<EdgeDetail>(`/investigations/${investigationId}/edges/${edgeId}`);
-      return res.data;
-    } catch (err: any) {
-      if (!err.response) {
-        return mockEdgeDetail;
-      }
-      throw err;
-    }
+    const res = await apiClient.get<EdgeDetail>(`/investigations/${investigationId}/edges/${edgeId}`);
+    return res.data;
   },
 
   async getHypotheses(investigationId: string): Promise<HypothesesOverviewResponse> {
-    try {
-      const res = await apiClient.get<HypothesesOverviewResponse>(`/investigations/${investigationId}/hypotheses`);
-      return res.data;
-    } catch (err: any) {
-      if (err.response?.status === 409 || err.response?.status === 404) {
-        return {
-          hypotheses: [],
-          gaps: [],
-          initial_access: [],
-          finding: {
-            text: 'No hypotheses generated. Investigation requires evidence upload and analysis.',
-            open_gaps: 0,
-            incomplete: true,
-          },
-        };
-      }
-      if (!err.response) {
-        return mockHypothesesOverview;
-      }
-      return {
-        hypotheses: [],
-        gaps: [],
-        initial_access: [],
-        finding: { text: 'Error loading hypotheses', open_gaps: 0, incomplete: true },
-      };
-    }
+    const res = await apiClient.get<HypothesesOverviewResponse>(`/investigations/${investigationId}/hypotheses`);
+    return res.data;
   },
 
   async getBlastRadius(investigationId: string, entityId: string, maxHops: number = 3): Promise<BlastRadiusResponse> {

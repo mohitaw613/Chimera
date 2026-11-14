@@ -22,6 +22,7 @@ export const BlastRadiusPage: React.FC = () => {
   const [data, setData] = useState<BlastRadiusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterClass, setFilterClass] = useState<string>('all');
+  const [analysisRequired, setAnalysisRequired] = useState(false);
 
   useEffect(() => {
     loadBlastRadius();
@@ -30,7 +31,14 @@ export const BlastRadiusPage: React.FC = () => {
   const loadBlastRadius = async () => {
     if (!investigationId || !startEntity) return;
     setLoading(true);
+    setAnalysisRequired(false);
     try {
+      const investigation = await api.getInvestigation(investigationId);
+      if (investigation.status !== 'analyzed') {
+        setData(null);
+        setAnalysisRequired(true);
+        return;
+      }
       const res = await api.getBlastRadius(investigationId, startEntity, maxHops);
       setData(res);
     } catch (err) {
@@ -39,6 +47,18 @@ export const BlastRadiusPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (analysisRequired) {
+    return (
+      <div className="max-w-3xl mx-auto py-16 text-center space-y-4">
+        <h1 className="text-xl font-bold text-white">Analysis required</h1>
+        <p className="text-sm text-slate-400">Run or rerun analysis before calculating the potential blast radius.</p>
+        <Link to={`/investigations/${investigationId}`} className="inline-flex px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold">
+          Go to Investigation Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   const filteredItems = (data?.items || []).filter((item) => {
     if (filterClass === 'all') return true;
@@ -142,9 +162,8 @@ export const BlastRadiusPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div
           onClick={() => setFilterClass(filterClass === 'directly_associated' ? 'all' : 'directly_associated')}
-          className={`card-glow rounded-2xl p-5 cursor-pointer transition-all ${
-            filterClass === 'directly_associated' ? 'border-emerald-500 ring-1 ring-emerald-500' : ''
-          }`}
+          className={`card-glow rounded-2xl p-5 cursor-pointer transition-all ${filterClass === 'directly_associated' ? 'border-emerald-500 ring-1 ring-emerald-500' : ''
+            }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Directly Associated</span>
@@ -158,9 +177,8 @@ export const BlastRadiusPage: React.FC = () => {
 
         <div
           onClick={() => setFilterClass(filterClass === 'indirectly_associated' ? 'all' : 'indirectly_associated')}
-          className={`card-glow rounded-2xl p-5 cursor-pointer transition-all ${
-            filterClass === 'indirectly_associated' ? 'border-blue-500 ring-1 ring-blue-500' : ''
-          }`}
+          className={`card-glow rounded-2xl p-5 cursor-pointer transition-all ${filterClass === 'indirectly_associated' ? 'border-blue-500 ring-1 ring-blue-500' : ''
+            }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Indirectly Associated</span>
@@ -174,9 +192,8 @@ export const BlastRadiusPage: React.FC = () => {
 
         <div
           onClick={() => setFilterClass(filterClass === 'unverified' ? 'all' : 'unverified')}
-          className={`card-glow rounded-2xl p-5 cursor-pointer transition-all ${
-            filterClass === 'unverified' ? 'border-rose-500 ring-1 ring-rose-500' : ''
-          }`}
+          className={`card-glow rounded-2xl p-5 cursor-pointer transition-all ${filterClass === 'unverified' ? 'border-rose-500 ring-1 ring-rose-500' : ''
+            }`}
         >
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Unverified Exposure</span>

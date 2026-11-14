@@ -30,6 +30,7 @@ export const UploadPage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [results, setResults] = useState<UploadResultFile[] | null>(null);
+  const importedRows = results?.reduce((total, file) => total + file.rows_ok + file.rows_flagged, 0) ?? 0;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -169,9 +170,9 @@ export const UploadPage: React.FC = () => {
       {results && (
         <div className="card-glow rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <div className={`flex items-center space-x-2 text-xs font-bold uppercase tracking-wider ${importedRows > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
               <CheckCircle2 className="w-4 h-4" />
-              <span>Ingestion Complete</span>
+              <span>{importedRows > 0 ? `${importedRows} events imported` : 'Upload completed, but no events were imported'}</span>
             </div>
             <button
               onClick={() => navigate(`/investigations/${investigationId}/evidence`)}
@@ -187,8 +188,24 @@ export const UploadPage: React.FC = () => {
               <div key={f.file_id} className="p-4 rounded-xl bg-cyber-950 border border-cyber-800 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-white">{f.filename}</span>
-                  <span className="font-mono text-emerald-400 font-bold">{f.rows_ok} valid records</span>
+                  <span className="font-mono text-slate-300 font-bold">
+                    {f.rows_ok + f.rows_flagged} imported / {f.rows_total} parsed
+                    {f.rows_failed > 0 ? ` / ${f.rows_failed} failed` : ''}
+                  </span>
                 </div>
+                {(f.rows_total === 0 || f.rows_ok + f.rows_flagged === 0) && (
+                  <p className="text-amber-300 text-[11px]">
+                    No event records were imported from this file. Check its format and the parse details below.
+                  </p>
+                )}
+                {!!f.errors?.length && (
+                  <ul className="space-y-1 text-[11px] text-rose-300">
+                    {f.errors.slice(0, 5).map((error, index) => (
+                      <li key={`${error.row}-${index}`}>Row {error.row}: {error.reason}</li>
+                    ))}
+                    {f.errors.length > 5 && <li>And {f.errors.length - 5} more parse errors.</li>}
+                  </ul>
+                )}
                 <div className="flex items-center space-x-2 font-mono text-[11px] text-slate-400 truncate">
                   <Hash className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
                   <span className="truncate">{f.sha256}</span>

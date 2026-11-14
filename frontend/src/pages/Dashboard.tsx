@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import cytoscape, { Core } from 'cytoscape';
 // @ts-ignore
@@ -35,7 +35,7 @@ import {
   EdgeDetail,
 } from '../types';
 import { EdgeEvidencePanel } from '../components/EdgeEvidencePanel';
-import { formatNodeLabel, formatEdgeLabel } from '../utils/graphVisuals';
+import { formatNodeLabel, formatEdgeLabel, extractIncidentChain } from '../utils/graphVisuals';
 
 // Register dagre layout
 try {
@@ -56,6 +56,7 @@ export const Dashboard: React.FC = () => {
   const [hypothesesData, setHypothesesData] = useState<HypothesesOverviewResponse | null>(null);
   const [timelineData, setTimelineData] = useState<TimelineResponse | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [graphViewMode, setGraphViewMode] = useState<'overview' | 'focus' | 'explore'>('overview');
 
   // Edge inspection panel state
@@ -72,22 +73,6 @@ export const Dashboard: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
-  const [graphHeight, setGraphHeight] = useState(360);
-  const graphCardRef = useRef<HTMLDivElement>(null);
-
-  // Measure the graph card height once mounted so Cytoscape gets a real pixel height
-  useLayoutEffect(() => {
-    if (!graphCardRef.current) return;
-    const measure = () => {
-      const cardH = graphCardRef.current?.offsetHeight ?? 460;
-      // subtract header (~60px) to get canvas area
-      setGraphHeight(Math.max(240, cardH - 68));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(graphCardRef.current);
-    return () => ro.disconnect();
-  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -114,23 +99,27 @@ export const Dashboard: React.FC = () => {
       setActiveCase(target);
       if (target) {
         localStorage.setItem('activeInvestigationId', target.id);
-        await loadCaseDetails(target.id);
+        await loadCaseDetails(target.id, target.status);
       }
     } catch (err) {
       console.error('Failed to load dashboard data', err);
     }
   };
 
-  const loadCaseDetails = async (caseId: string) => {
+  const loadCaseDetails = async (caseId: string, caseStatus?: Investigation['status']) => {
     // Clear stale data immediately
     setGraphData(null);
     setHypothesesData(null);
     setTimelineData(null);
     try {
+      const status = caseStatus ?? (await api.getInvestigation(caseId)).status;
+      if (status !== 'analyzed') {
+        setTimelineData(await api.getTimeline(caseId));
+        return;
+      }
+
       const [graph, hyp, timeline] = await Promise.all([
-        api.getGraph(caseId),
-        api.getHypotheses(caseId),
-        api.getTimeline(caseId),
+        api.getGraph(caseId), api.getHypotheses(caseId), api.getTimeline(caseId),
       ]);
       setGraphData(graph);
       setHypothesesData(hyp);
@@ -143,12 +132,17 @@ export const Dashboard: React.FC = () => {
   const handleRunAnalysis = async () => {
     if (!activeCase) return;
     setAnalyzing(true);
+    setAnalysisError(null);
     try {
-      await api.triggerAnalysis(activeCase.id);
-      await loadCaseDetails(activeCase.id);
+      const result = await api.triggerAnalysis(activeCase.id);
+      const analyzedCase = { ...activeCase, status: 'analyzed' as const, analyzed_at: result.analyzed_at };
+      setActiveCase(analyzedCase);
+      setInvestigations((current) => current.map((item) => item.id === analyzedCase.id ? analyzedCase : item));
+      await loadCaseDetails(activeCase.id, 'analyzed');
       const sum = await api.getDashboard();
       setSummary(sum);
-    } catch (err) {
+    } catch (err: any) {
+      setAnalysisError(err.response?.data?.detail || err.message || 'Analysis failed. Check the backend logs.');
       console.error('Failed to run analysis', err);
     } finally {
       setAnalyzing(false);
@@ -186,35 +180,9 @@ export const Dashboard: React.FC = () => {
     let targetEdges = graphData.edges;
 
     if (graphViewMode === 'overview') {
-      // Prioritize the core incident attack path:
-      // 1. Alert events (privilege change)
-      // 2. High-signal actors & pivot workstations (user_jdoe, WS-207)
-      // 3. Target services & servers (FileShare, SRV-FILE01, SRV-DB02, svc_backup)
-      // 4. Malicious egress IP (203.0.113.45)
-      const scored = graphData.nodes.map((n) => {
-        const nid = n.data.id.toLowerCase();
-        const lbl = (n.data.label || '').toLowerCase();
-        const sigs = n.data.signal_ids || [];
-        let score = sigs.length * 2;
-        if (nid.includes('privilege') || lbl.includes('privilege') || nid.startsWith('event:')) score += 100;
-        if (nid.includes('203.0.113') || nid.startsWith('external:')) score += 50;
-        if (nid.includes('ws-207')) score += 35;
-        if (nid.includes('jdoe')) score += 40;
-        if (nid.includes('fileshare')) score += 30;
-        if (nid.includes('svc_backup')) score += 25;
-        if (nid.includes('srv-file') || nid.includes('srv-db')) score += 20;
-        if (n.data.suspicious) score += 10;
-        return { node: n, score };
-      });
-
-      scored.sort((a, b) => b.score - a.score);
-      const topNodes = scored.slice(0, 9).map((s) => s.node);
-      const topIds = new Set(topNodes.map((n) => n.data.id));
-
-      targetNodes = topNodes;
-      targetEdges = graphData.edges.filter(
-        (e) => topIds.has(e.data.source) && topIds.has(e.data.target)
-      );
+      const incident = extractIncidentChain(graphData.nodes, graphData.edges);
+      targetNodes = incident.nodes;
+      targetEdges = incident.edges;
     } else if (graphViewMode === 'focus') {
       // Direct 1-hop around alert or pivot node
       const alertNode = graphData.nodes.find((n) => {
@@ -396,30 +364,41 @@ export const Dashboard: React.FC = () => {
     // Run Dagre layout — Left-to-Right directed flow matching incident reference mockup
     const layoutOptions: any = graphViewMode === 'focus'
       ? {
-          name: 'dagre',
-          rankDir: 'TB',
-          nodeSep: 80,
-          rankSep: 110,
-          padding: 40,
-          animate: true,
-          animationDuration: 300,
-        }
+        name: 'dagre',
+        rankDir: 'TB',
+        nodeSep: 80,
+        rankSep: 110,
+        padding: 40,
+        animate: true,
+        animationDuration: 300,
+      }
       : {
-          name: 'dagre',
-          rankDir: 'LR',
-          nodeSep: 85,
-          rankSep: 130,
-          padding: 45,
-          animate: true,
-          animationDuration: 300,
-        };
+        name: 'dagre',
+        rankDir: 'LR',
+        nodeSep: 85,
+        rankSep: 130,
+        padding: 45,
+        animate: true,
+        animationDuration: 300,
+      };
 
     cy.layout(layoutOptions).run();
 
-    // After layout runs positions, force a resize + fit so the container has settled
-    setTimeout(() => {
-      cy.resize();
-      cy.fit(undefined, 40);
+    // Resize and refit when the embedded canvas changes size, not when its parent card changes.
+    const canvas = containerRef.current;
+    const resizeObserver = new ResizeObserver(() => {
+      if (!cy.destroyed()) {
+        cy.resize();
+        cy.fit(undefined, 40);
+      }
+    });
+    if (canvas) resizeObserver.observe(canvas);
+
+    const fitTimeout = window.setTimeout(() => {
+      if (!cy.destroyed()) {
+        cy.resize();
+        cy.fit(undefined, 40);
+      }
     }, 120);
 
     cy.on('tap', 'edge', async (evt) => {
@@ -442,9 +421,12 @@ export const Dashboard: React.FC = () => {
     cyRef.current = cy;
 
     return () => {
+      window.clearTimeout(fitTimeout);
+      resizeObserver.disconnect();
+      if (cyRef.current === cy) cyRef.current = null;
       cy.destroy();
     };
-  }, [graphData, activeCase, graphViewMode, graphHeight]);
+  }, [graphData, activeCase, graphViewMode]);
 
   const fitView = () => {
     cyRef.current?.resize();
@@ -462,6 +444,7 @@ export const Dashboard: React.FC = () => {
   // Leading hypothesis and suspicion score calculation — from real API data
   const leadingHypothesis = hypothesesData?.hypotheses?.find((h) => h.status === 'leading') || hypothesesData?.hypotheses?.[0];
   const suspicionScore = leadingHypothesis ? Math.round(leadingHypothesis.score) : null;
+  const hasEvidence = (activeCase?.counts?.events ?? 0) > 0;
 
   // Timeline events — from real API data, mapped to icon+color
   const TIMELINE_TYPE_META: Record<string, { label: string; icon: typeof UserIcon; alert: boolean }> = {
@@ -509,7 +492,7 @@ export const Dashboard: React.FC = () => {
                   if (sel) {
                     setActiveCase(sel);
                     localStorage.setItem('activeInvestigationId', sel.id);
-                    loadCaseDetails(sel.id);
+                    loadCaseDetails(sel.id, sel.status);
                   }
                 }}
                 className="text-2xl font-bold text-white tracking-tight font-sans bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer pr-4"
@@ -544,12 +527,21 @@ export const Dashboard: React.FC = () => {
 
           <button
             onClick={handleRunAnalysis}
-            disabled={analyzing}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-xl text-xs font-semibold shadow-lg shadow-blue-500/25 flex items-center space-x-2 transition-all disabled:opacity-50"
+            disabled={analyzing || !hasEvidence}
+            title={!hasEvidence ? 'Upload at least one event before running analysis.' : undefined}
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-xl text-xs font-semibold shadow-lg shadow-blue-500/25 flex items-center space-x-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className={`w-3.5 h-3.5 fill-current ${analyzing ? 'animate-spin' : ''}`} />
-            <span>{analyzing ? 'Analyzing…' : 'Run Analysis'}</span>
+            <span>{analyzing ? 'Analyzing…' : hasEvidence ? 'Run Analysis' : 'Upload Evidence First'}</span>
           </button>
+          {!hasEvidence && activeCase && (
+            <Link
+              to={`/investigations/${activeCase.id}/upload`}
+              className="px-3 py-2 rounded-xl border border-cyber-800 text-xs font-semibold text-slate-300 hover:text-white hover:bg-cyber-850"
+            >
+              Upload Evidence
+            </Link>
+          )}
 
           <button
             onClick={() => setShowCreateModal(true)}
@@ -559,6 +551,9 @@ export const Dashboard: React.FC = () => {
             <Plus className="w-4 h-4" />
           </button>
         </div>
+        {analysisError && (
+          <p role="alert" className="text-xs text-rose-400 md:text-right">{analysisError}</p>
+        )}
       </div>
 
       {/* Row of 5 KPI Cards */}
@@ -704,7 +699,7 @@ export const Dashboard: React.FC = () => {
         {/* Left Column (8 cols): Attack Graph + Event Timeline */}
         <div className="lg:col-span-8 space-y-6">
           {/* Attack Graph Card */}
-          <div ref={graphCardRef} className="card-glow rounded-2xl p-5 flex flex-col">
+          <div className="card-glow rounded-2xl p-5 flex flex-col">
             {/* Graph Card Header matching the reference screenshot */}
             <div className="flex flex-wrap items-center justify-between pb-3 border-b border-cyber-800/80 z-10 gap-3">
               <div className="flex items-center space-x-2.5">
@@ -720,25 +715,22 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-center p-0.5 bg-cyber-950 rounded-xl border border-cyber-800 text-xs">
                   <button
                     onClick={() => setGraphViewMode('overview')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      graphViewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${graphViewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     Overview
                   </button>
                   <button
                     onClick={() => setGraphViewMode('focus')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      graphViewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${graphViewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     Focus
                   </button>
                   <button
                     onClick={() => setGraphViewMode('explore')}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      graphViewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${graphViewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     Explore
                   </button>
@@ -822,17 +814,18 @@ export const Dashboard: React.FC = () => {
                   </Link>
                   <button
                     onClick={handleRunAnalysis}
-                    disabled={analyzing}
-                    className="px-3.5 py-1.5 rounded-xl bg-cyber-850 hover:bg-cyber-800 border border-cyber-800 text-slate-300 text-xs font-semibold transition-colors"
+                    disabled={analyzing || !hasEvidence}
+                    title={!hasEvidence ? 'Upload at least one event before running analysis.' : undefined}
+                    className="px-3.5 py-1.5 rounded-xl bg-cyber-850 hover:bg-cyber-800 border border-cyber-800 text-slate-300 text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Run Analysis
+                    {hasEvidence ? 'Run Analysis' : 'Upload evidence first'}
                   </button>
                 </div>
               </div>
             ) : (
               <div
                 ref={containerRef}
-                style={{ width: '100%', height: `${graphHeight}px`, display: 'block' }}
+                style={{ width: '100%', height: '360px', display: 'block' }}
               />
             )}
           </div>
@@ -867,18 +860,16 @@ export const Dashboard: React.FC = () => {
                         <div key={idx} className="flex flex-col items-center group cursor-pointer">
                           <div className="text-[11px] font-mono text-slate-400 mb-2">{evt.time}</div>
                           <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                              evt.alert
-                                ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-glow-red scale-110'
-                                : 'bg-cyber-850 border border-blue-500/40 text-blue-400 hover:border-blue-400'
-                            }`}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${evt.alert
+                              ? 'bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-glow-red scale-110'
+                              : 'bg-cyber-850 border border-blue-500/40 text-blue-400 hover:border-blue-400'
+                              }`}
                           >
                             <Icon className="w-4 h-4" />
                           </div>
                           <div
-                            className={`text-xs font-semibold mt-2.5 text-center ${
-                              evt.alert ? 'text-rose-300' : 'text-slate-300'
-                            }`}
+                            className={`text-xs font-semibold mt-2.5 text-center ${evt.alert ? 'text-rose-300' : 'text-slate-300'
+                              }`}
                           >
                             {evt.label}
                           </div>

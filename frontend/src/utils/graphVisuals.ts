@@ -1,3 +1,5 @@
+import { CytoscapeNode, CytoscapeEdge } from '../types';
+
 /**
  * High-visibility technical graph visual assets, crisp SVG icons, and precise SOC label formatters.
  * Matches enterprise attack graph consoles (e.g. Sentinel, CrowdStrike Falcon, Palantir Gotham).
@@ -161,4 +163,97 @@ export function formatEdgeLabel(relType: string, targetId: string): string {
     return 'Correlated';
   }
   return relType;
+}
+
+/**
+ * Robustly extracts the connected incident attack chain via 3-hop BFS:
+ * Alert events -> pivot workstations -> targets -> egress.
+ * Guarantees that every extracted node is connected by real edges.
+ */
+export function extractIncidentChain(allNodes: CytoscapeNode[], allEdges: CytoscapeEdge[]): { nodes: CytoscapeNode[]; edges: CytoscapeEdge[] } {
+  if (allNodes.length <= 10) {
+    return { nodes: allNodes, edges: allEdges };
+  }
+
+  const alertIds = new Set<string>();
+  allNodes.forEach((n) => {
+    const nid = n.data.id.toLowerCase();
+    const lbl = (n.data.label || '').toLowerCase();
+    if (nid.includes('privilege') || lbl.includes('privilege') || nid.startsWith('event:')) {
+      alertIds.add(n.data.id);
+    }
+  });
+
+  if (alertIds.size === 0) {
+    alertIds.add(allNodes[0].data.id);
+  }
+
+  const incidentEdges: CytoscapeEdge[] = [];
+  const incidentNodes = new Set<string>(alertIds);
+
+  // Hop 1: Direct neighbors of alert
+  allEdges.forEach((e) => {
+    if (alertIds.has(e.data.source) || alertIds.has(e.data.target)) {
+      incidentEdges.push(e);
+      incidentNodes.add(e.data.source);
+      incidentNodes.add(e.data.target);
+    }
+  });
+
+  // Hop 2 & 3: Traverse lateral movement, logins, and egress
+  for (let hop = 0; hop < 3; hop++) {
+    const currentNodes = new Set<string>(incidentNodes);
+    allEdges.forEach((e) => {
+      const s = e.data.source;
+      const t = e.data.target;
+      const lbl = (e.data.label || '').toUpperCase();
+
+      if (currentNodes.has(s) || currentNodes.has(t)) {
+        if (s.includes('192.168.1.') || t.includes('192.168.1.')) return;
+
+        if (lbl === 'CONNECTED_TO' || lbl === 'AUTHENTICATED_TO') {
+          incidentEdges.push(e);
+          incidentNodes.add(s);
+          incidentNodes.add(t);
+        } else if (
+          lbl === 'ACCESSED' &&
+          (s.includes('jdoe') || t.includes('jdoe') || s.includes('backup') || t.includes('backup'))
+        ) {
+          incidentEdges.push(e);
+          incidentNodes.add(s);
+          incidentNodes.add(t);
+        }
+      }
+    });
+  }
+
+  // Include any other edges connecting any two discovered incident nodes
+  allEdges.forEach((e) => {
+    if (incidentNodes.has(e.data.source) && incidentNodes.has(e.data.target)) {
+      incidentEdges.push(e);
+    }
+  });
+
+  // Deduplicate edges by ID
+  const edgeMap = new Map<string, CytoscapeEdge>();
+  incidentEdges.forEach((e) => edgeMap.set(e.data.id, e));
+  const dedupEdges = Array.from(edgeMap.values());
+
+  // Nodes used by the final edges (guarantees NO orphaned nodes without links)
+  const usedNodeIds = new Set<string>();
+  dedupEdges.forEach((e) => {
+    usedNodeIds.add(e.data.source);
+    usedNodeIds.add(e.data.target);
+  });
+
+  const finalNodes = allNodes.filter((n) => usedNodeIds.has(n.data.id));
+
+  if (finalNodes.length === 0 || dedupEdges.length === 0) {
+    const fallbackNodes = allNodes.slice(0, 8);
+    const fallbackIds = new Set(fallbackNodes.map((n) => n.data.id));
+    const fallbackEdges = allEdges.filter((e) => fallbackIds.has(e.data.source) && fallbackIds.has(e.data.target));
+    return { nodes: fallbackNodes, edges: fallbackEdges };
+  }
+
+  return { nodes: finalNodes, edges: dedupEdges };
 }

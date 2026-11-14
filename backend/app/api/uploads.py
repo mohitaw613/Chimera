@@ -104,6 +104,22 @@ async def upload_evidence(
         # SHA-256 fingerprint
         sha256_hash = hashlib.sha256(content).hexdigest()
 
+        # Check if file has already been uploaded to this investigation
+        file_id = f"file_{investigation_id}_{sha256_hash[:8]}"
+        existing_file = db.query(UploadedFile).filter(UploadedFile.id == file_id).first()
+        if existing_file:
+            results.append({
+                "file_id": existing_file.id,
+                "filename": filename,
+                "sha256": sha256_hash,
+                "rows_total": existing_file.rows_total,
+                "rows_ok": existing_file.rows_ok,
+                "rows_flagged": existing_file.rows_flagged,
+                "rows_failed": existing_file.rows_failed,
+                "errors": [],
+            })
+            continue
+
         # Save to disk with globally unique file_id
         file_id = f"file_{investigation_id}_{sha256_hash[:8]}"
         stored_filename = f"{investigation_id}_{file_id}_{filename}"

@@ -16,7 +16,7 @@ import {
 import { api } from '../api/client';
 import { EdgeDetail, GraphResponse, Investigation } from '../types';
 import { EdgeEvidencePanel } from '../components/EdgeEvidencePanel';
-import { formatNodeLabel, formatEdgeLabel } from '../utils/graphVisuals';
+import { formatNodeLabel, formatEdgeLabel, extractIncidentChain } from '../utils/graphVisuals';
 
 // Register dagre layout
 try {
@@ -34,6 +34,8 @@ export const GraphPage: React.FC = () => {
 
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
+  const [analysisRequired, setAnalysisRequired] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [edgeDetail, setEdgeDetail] = useState<EdgeDetail | null>(null);
   const [edgeLoading, setEdgeLoading] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -46,6 +48,8 @@ export const GraphPage: React.FC = () => {
   }, [investigationId]);
 
   const loadGraph = async () => {
+    setAnalysisRequired(false);
+    setLoadError(null);
     try {
       const list = await api.listInvestigations();
       setInvestigations(list);
@@ -68,10 +72,17 @@ export const GraphPage: React.FC = () => {
       }
 
       if (targetId) {
+        const selectedInvestigation = list.find((item) => item.id === targetId);
+        if (selectedInvestigation?.status !== 'analyzed') {
+          setGraphData(null);
+          setAnalysisRequired(true);
+          return;
+        }
         const data = await api.getGraph(targetId);
         setGraphData(data);
       }
-    } catch (err) {
+    } catch (err: any) {
+      setLoadError(err.response?.data?.detail || err.message || 'Could not load attack graph.');
       console.error('Failed to load attack graph', err);
     }
   };
@@ -83,35 +94,9 @@ export const GraphPage: React.FC = () => {
     let targetEdges = graphData.edges;
 
     if (viewMode === 'overview') {
-      // Prioritize primary incident attack chain:
-      // 1. Alert events (privilege change)
-      // 2. High-signal actors & pivot workstations (user_jdoe, WS-207)
-      // 3. Target services & servers (FileShare, SRV-FILE01, SRV-DB02, svc_backup)
-      // 4. Malicious egress IP (203.0.113.45)
-      const scored = graphData.nodes.map((n) => {
-        const nid = n.data.id.toLowerCase();
-        const lbl = (n.data.label || '').toLowerCase();
-        const sigs = n.data.signal_ids || [];
-        let score = sigs.length * 2;
-        if (nid.includes('privilege') || lbl.includes('privilege') || nid.startsWith('event:')) score += 100;
-        if (nid.includes('203.0.113') || nid.startsWith('external:')) score += 50;
-        if (nid.includes('ws-207')) score += 35;
-        if (nid.includes('jdoe')) score += 40;
-        if (nid.includes('fileshare')) score += 30;
-        if (nid.includes('svc_backup')) score += 25;
-        if (nid.includes('srv-file') || nid.includes('srv-db')) score += 20;
-        if (n.data.suspicious) score += 10;
-        return { node: n, score };
-      });
-
-      scored.sort((a, b) => b.score - a.score);
-      const topNodes = scored.slice(0, 9).map((s) => s.node);
-      const topIds = new Set(topNodes.map((n) => n.data.id));
-
-      targetNodes = topNodes;
-      targetEdges = graphData.edges.filter(
-        (e) => topIds.has(e.data.source) && topIds.has(e.data.target)
-      );
+      const incident = extractIncidentChain(graphData.nodes, graphData.edges);
+      targetNodes = incident.nodes;
+      targetEdges = incident.edges;
     } else if (viewMode === 'focus') {
       const alertNode = graphData.nodes.find((n) => {
         const id = n.data.id.toLowerCase();
@@ -313,23 +298,23 @@ export const GraphPage: React.FC = () => {
     // ── Choose layout ────────────────────────────────────────────────────────
     const layoutOptions: any = viewMode === 'focus'
       ? {
-          name: 'dagre',
-          rankDir: 'TB',
-          nodeSep: 80,
-          rankSep: 110,
-          padding: 40,
-          animate: true,
-          animationDuration: 300,
-        }
+        name: 'dagre',
+        rankDir: 'TB',
+        nodeSep: 80,
+        rankSep: 110,
+        padding: 40,
+        animate: true,
+        animationDuration: 300,
+      }
       : {
-          name: 'dagre',
-          rankDir: 'LR',
-          nodeSep: 85,
-          rankSep: 130,
-          padding: 45,
-          animate: true,
-          animationDuration: 300,
-        };
+        name: 'dagre',
+        rankDir: 'LR',
+        nodeSep: 85,
+        rankSep: 130,
+        padding: 45,
+        animate: true,
+        animationDuration: 300,
+      };
 
     cy.layout(layoutOptions).run();
 
@@ -453,25 +438,22 @@ export const GraphPage: React.FC = () => {
           <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs">
             <button
               onClick={() => setViewMode('overview')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                viewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === 'overview' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Overview
             </button>
             <button
               onClick={() => setViewMode('focus')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                viewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === 'focus' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Focus
             </button>
             <button
               onClick={() => setViewMode('explore')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                viewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${viewMode === 'explore' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Explore
             </button>
@@ -481,33 +463,29 @@ export const GraphPage: React.FC = () => {
           <div className="flex items-center p-1 bg-cyber-950/90 backdrop-blur rounded-xl border border-cyber-800 text-xs">
             <button
               onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                activeFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
             >
               All Edges
             </button>
             <button
               onClick={() => setActiveFilter('observed')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                activeFilter === 'observed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'observed' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Observed
             </button>
             <button
               onClick={() => setActiveFilter('inferred')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                activeFilter === 'inferred' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'inferred' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Inferred
             </button>
             <button
               onClick={() => setActiveFilter('suspicious')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                activeFilter === 'suspicious' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-lg font-medium transition-all ${activeFilter === 'suspicious' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
             >
               Suspicious
             </button>
@@ -602,7 +580,9 @@ export const GraphPage: React.FC = () => {
               </div>
               <div className="text-sm font-semibold text-slate-200">No Attack Graph Generated</div>
               <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-                This investigation has not been analyzed yet. Upload logs and run analysis to reconstruct the evidence-grounded attack graph.
+                {loadError || (analysisRequired
+                  ? 'This investigation is not analyzed yet, or new evidence has made its analysis stale. Run analysis from the investigation dashboard first.'
+                  : 'No graph entities were produced by the completed analysis.')}
               </p>
               <div className="flex items-center space-x-3 pt-2">
                 <Link
@@ -610,6 +590,12 @@ export const GraphPage: React.FC = () => {
                   className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shadow-blue-500/20"
                 >
                   Upload Evidence
+                </Link>
+                <Link
+                  to={`/investigations/${investigationId}`}
+                  className="px-3.5 py-1.5 rounded-xl bg-cyber-850 hover:bg-cyber-800 border border-cyber-800 text-slate-300 text-xs font-semibold transition-colors"
+                >
+                  Go to Dashboard
                 </Link>
               </div>
             </div>
