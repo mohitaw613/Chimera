@@ -2,6 +2,7 @@
 Hypothesis, Signal, Gap, and Initial Access schemas.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict
 
@@ -62,6 +63,9 @@ class InitialAccessCandidateResponse(BaseModel):
     evidence_ids: List[str]
     caveat: str
     technique: Optional[Dict[str, str]] = None
+    event_time: Optional[datetime] = None
+    source_ip: Optional[str] = None
+    target: Optional[str] = None
 
 
 class FindingSummary(BaseModel):

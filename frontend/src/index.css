@@ -46,6 +46,49 @@
   border-color: #28395d;
 }
 
+/* Print Optimization for Forensic Dossiers */
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt;
+  }
+
+  aside, nav, header, button, .print-hidden {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  .card-glow {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
 /* Tactical Dark Graph Background */
 .radar-grid {
   background-color: #090d16;

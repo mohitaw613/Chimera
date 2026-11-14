@@ -58,6 +58,14 @@ export interface CanonicalEvent {
   attributes: Record<string, any>;
 }
 
+export interface TimelineSignal {
+  id: string;
+  signal: string;
+  reason: string;
+  severity: string;
+  kind: string;
+}
+
 export interface TimelineEvent {
   id: string;
   event_time?: string | null;
@@ -73,6 +81,7 @@ export interface TimelineEvent {
   primary_flag: string;
   ordering_ambiguous: boolean;
   signal_ids: string[];
+  signals?: TimelineSignal[];
 }
 
 export interface TimelineResponse {
@@ -211,6 +220,9 @@ export interface InitialAccessCandidate {
     tactic: string;
     caveat: string;
   };
+  event_time?: string | null;
+  source_ip?: string | null;
+  target?: string | null;
 }
 
 export interface HypothesesOverviewResponse {

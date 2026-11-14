@@ -6,9 +6,50 @@ import {
   GitFork,
   AlertTriangle,
   ChevronRight,
+  ShieldAlert,
+  Calendar,
+  Layers,
 } from 'lucide-react';
 import { api } from '../api/client';
-import { TimelineResponse } from '../types';
+import { TimelineResponse, TimelineSignal } from '../types';
+
+const SIGNAL_DEFINITIONS: Record<string, { label: string; severity: 'high' | 'medium' | 'low'; description: string }> = {
+  unusual_login_hour: {
+    label: 'Off-Hours Authentication',
+    severity: 'medium',
+    description: 'Login activity detected outside standard operational business hours (07:00–19:00 UTC).',
+  },
+  new_device_association: {
+    label: 'New Device Association',
+    severity: 'medium',
+    description: 'First observed binding between this user account and endpoint device in telemetry baseline.',
+  },
+  service_account_interactive_login: {
+    label: 'Interactive Service Account Login',
+    severity: 'high',
+    description: 'Non-human service identity initiated an interactive workstation session instead of an automated daemon process.',
+  },
+  failed_then_success: {
+    label: 'Brute Force / Credential Guessing',
+    severity: 'high',
+    description: 'Multiple consecutive failed authentications immediately followed by a successful login.',
+  },
+  privilege_change_event: {
+    label: 'Unverified Privilege Escalation',
+    severity: 'high',
+    description: 'Administrative role or token elevation without an approved change authorization ticket.',
+  },
+  new_external_endpoint: {
+    label: 'Anomalous External Network Egress',
+    severity: 'medium',
+    description: 'First observed outbound network socket connection to an untrusted external IP address.',
+  },
+  dense_sequence: {
+    label: 'High-Density Suspicious Event Burst',
+    severity: 'high',
+    description: 'Concentrated cluster of multiple suspicious events within a narrow 15-minute correlation window.',
+  },
+};
 
 export const TimelinePage: React.FC = () => {
   const { id: investigationId } = useParams<{ id: string }>();
@@ -38,7 +79,8 @@ export const TimelinePage: React.FC = () => {
   };
 
   const filteredEvents = (data?.events || []).filter((ev) => {
-    if (onlySignals && ev.signal_ids.length === 0) return false;
+    const hasAnySignal = (ev.signals && ev.signals.length > 0) || (ev.signal_ids && ev.signal_ids.length > 0);
+    if (onlySignals && !hasAnySignal) return false;
     if (filterType === 'delayed') return ev.flags.includes('delayed');
     if (filterType === 'out_of_order') return ev.flags.includes('out_of_order');
     if (filterType === 'ambiguous') return ev.ordering_ambiguous;
@@ -48,9 +90,20 @@ export const TimelinePage: React.FC = () => {
   const delayedCount = (data?.events || []).filter((e) => e.flags.includes('delayed')).length;
   const outOfOrderCount = (data?.events || []).filter((e) => e.flags.includes('out_of_order')).length;
   const ambiguousCount = (data?.events || []).filter((e) => e.ordering_ambiguous).length;
+  const signalEventsCount = (data?.events || []).filter((e) => (e.signals && e.signals.length > 0) || (e.signal_ids && e.signal_ids.length > 0)).length;
+
+  const formatDateTime = (isoString?: string | null) => {
+    if (!isoString) return '—';
+    try {
+      const d = new Date(isoString);
+      return d.toISOString().replace('T', ' ').slice(11, 19) + ' UTC';
+    } catch {
+      return isoString;
+    }
+  };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-10">
+    <div className="space-y-6 max-w-6xl mx-auto pb-10 font-sans">
       {/* Header & Metrics */}
       <div className="card-glow rounded-2xl p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -60,9 +113,9 @@ export const TimelinePage: React.FC = () => {
               <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
               <span className="text-blue-400 font-mono">#{investigationId}</span>
             </div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Event Timeline</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Event Timeline & Anomaly Analysis</h1>
             <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-              Chronologically reconstructed event sequence resolving arrival delays and out-of-order log streams.
+              Chronologically reconstructed sequence resolving arrival delays, cross-log inversions, and behavioral security anomalies.
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -113,20 +166,20 @@ export const TimelinePage: React.FC = () => {
 
           <div className="p-3.5 rounded-xl bg-cyber-950/70 border border-cyber-800 space-y-1">
             <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Skew Ambiguous</span>
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <span>Security Anomalies</span>
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
             </div>
             <div className="text-2xl font-bold font-mono text-rose-400">
-              {loading ? '…' : ambiguousCount}
+              {loading ? '…' : signalEventsCount}
             </div>
-            <div className="text-[11px] text-slate-500">Within ±3s tolerance</div>
+            <div className="text-[11px] text-slate-500">Flagged by anomaly rules</div>
           </div>
         </div>
       </div>
 
       {/* Filter Tabs Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 bg-cyber-900 rounded-2xl border border-cyber-800">
-        <div className="flex items-center space-x-1 text-xs">
+        <div className="flex items-center space-x-1 text-xs overflow-x-auto py-0.5">
           <button
             onClick={() => setFilterType('all')}
             className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
@@ -170,57 +223,87 @@ export const TimelinePage: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3 px-3">
-          <label className="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+          <label className="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={onlySignals}
               onChange={(e) => setOnlySignals(e.target.checked)}
-              className="rounded bg-cyber-950 border-cyber-700 text-blue-600 focus:ring-0"
+              className="rounded bg-cyber-950 border-cyber-700 text-rose-500 focus:ring-0 focus:ring-offset-0"
             />
-            <span>Show Anomalies Only</span>
+            <span className={onlySignals ? 'font-semibold text-rose-400' : 'text-slate-400'}>
+              Anomalous Events Only ({signalEventsCount})
+            </span>
           </label>
         </div>
       </div>
 
       {/* Chronological Event Stream */}
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {loading ? (
-          <div className="text-center py-12 text-slate-400 text-xs">Reconstructing timeline…</div>
+          <div className="text-center py-16 text-slate-400 text-xs">Reconstructing chronological sequence & evaluating anomaly rules…</div>
         ) : filteredEvents.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-xs">No events match the selected filters.</div>
+          <div className="text-center py-16 text-slate-400 text-xs">No events match the selected filters.</div>
         ) : (
           filteredEvents.map((ev, index) => {
-            const hasSignals = ev.signal_ids && ev.signal_ids.length > 0;
+            const hasSignals = (ev.signals && ev.signals.length > 0) || (ev.signal_ids && ev.signal_ids.length > 0);
             const isDelayed = ev.flags.includes('delayed');
             const isOutOfOrder = ev.flags.includes('out_of_order');
+            const isAmbiguous = ev.ordering_ambiguous;
+
+            // Collect signal objects, or reconstruct from signal_ids if objects are missing
+            const activeSignals: TimelineSignal[] = (ev.signals && ev.signals.length > 0)
+              ? ev.signals
+              : (ev.signal_ids || []).map((sigId) => {
+                  const matchedKey = Object.keys(SIGNAL_DEFINITIONS).find((k) => sigId.toLowerCase().includes(k)) || 'anomaly';
+                  const def = SIGNAL_DEFINITIONS[matchedKey] || {
+                    label: 'Suspicious Behavioral Anomaly',
+                    severity: 'high' as const,
+                    description: `Security rule violation flagged on this event [${sigId}].`,
+                  };
+                  return {
+                    id: sigId,
+                    signal: matchedKey,
+                    reason: def.description,
+                    severity: def.severity,
+                    kind: 'anomaly',
+                  };
+                });
 
             return (
               <div
                 key={ev.id}
-                className={`card-glow rounded-2xl p-4 transition-all hover:border-slate-700 ${
-                  hasSignals ? 'border-l-4 border-l-rose-500' : ''
+                className={`card-glow rounded-2xl p-4.5 transition-all hover:border-slate-700 ${
+                  hasSignals
+                    ? 'border-l-4 border-l-rose-500 bg-cyber-900/90'
+                    : isDelayed || isOutOfOrder
+                    ? 'border-l-4 border-l-amber-500/70 bg-cyber-900/60'
+                    : 'bg-cyber-900/40'
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs font-mono font-bold text-slate-400">
+                {/* Event Row Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-xs font-mono font-bold text-slate-500">
                       #{index + 1}
                     </span>
-                    <span className="font-mono text-xs font-semibold text-blue-400">
+                    <span className="font-mono text-xs font-semibold text-blue-400 px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
                       {ev.id}
                     </span>
-                    <span className="text-slate-600">•</span>
-                    <span className="text-xs font-semibold text-white">
+                    <span className="text-slate-600 font-bold">•</span>
+                    <span className="text-xs font-bold text-white tracking-wide">
                       {ev.actor || 'System'}
                     </span>
                     <span className="text-slate-400 text-xs">
-                      {ev.event_type} on <span className="text-slate-200">{ev.target || (ev as any).device || 'Host'}</span>
+                      {ev.event_type} on <span className="text-slate-200 font-mono">{ev.target || (ev as any).device || 'Host'}</span>
                     </span>
                   </div>
 
                   {/* Timing Badges */}
                   <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-                    <span className="text-slate-400">{ev.event_time ? new Date(ev.event_time).toLocaleTimeString() : '—'} UTC</span>
+                    <span className="px-2 py-0.5 rounded-full bg-cyber-950 border border-cyber-800 text-slate-300 flex items-center space-x-1">
+                      <Calendar className="w-3 h-3 text-slate-500" />
+                      <span>{formatDateTime(ev.event_time)}</span>
+                    </span>
                     {isDelayed && (
                       <span className="px-2 py-0.5 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                         Delayed +{ev.delay_seconds}s
@@ -231,14 +314,91 @@ export const TimelinePage: React.FC = () => {
                         Out-of-Order
                       </span>
                     )}
+                    {isAmbiguous && (
+                      <span className="px-2 py-0.5 rounded-full font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                        Ambiguous
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Event Signals or Notes */}
-                {hasSignals && (
-                  <div className="mt-2.5 pt-2.5 border-t border-cyber-800/80 flex items-center space-x-2 text-xs text-rose-400 font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>Flagged by anomaly detector: {ev.signal_ids.join(', ')}</span>
+                {/* Event Metadata Subline */}
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                  <span className="flex items-center space-x-1">
+                    <Layers className="w-3 h-3 text-slate-500" />
+                    <span>Source: <strong className="text-slate-300 font-mono">{ev.source}</strong></span>
+                  </span>
+                  {ev.source_device && (
+                    <span>Endpoint: <strong className="text-slate-300 font-mono">{ev.source_device}</strong></span>
+                  )}
+                  {ev.outcome && (
+                    <span>Status: <strong className={ev.outcome === 'success' ? 'text-emerald-400' : 'text-rose-400'}>{ev.outcome}</strong></span>
+                  )}
+                </div>
+
+                {/* One Compact Single Row for Anomalies & Reasons */}
+                {(hasSignals || isDelayed || isOutOfOrder || isAmbiguous) && (
+                  <div className="mt-2.5 pt-2 border-t border-cyber-800/80 flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center space-x-1 mr-1">
+                      <AlertTriangle className="w-3 h-3 text-amber-400" />
+                      <span>Anomalies:</span>
+                    </span>
+
+                    {/* Security Signal Short Badges */}
+                    {activeSignals.map((sig, sIdx) => {
+                      const def = SIGNAL_DEFINITIONS[sig.signal] || {
+                        label: sig.signal.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                        severity: (sig.severity as any) || 'high',
+                        description: sig.reason,
+                      };
+                      const isHigh = (sig.severity || def.severity) === 'high';
+                      return (
+                        <span
+                          key={sIdx}
+                          title={`${sig.id} • Reason: ${sig.reason || def.description}`}
+                          className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border cursor-help transition-all ${
+                            isHigh
+                              ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
+                              : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${isHigh ? 'bg-rose-400' : 'bg-amber-400'}`}></span>
+                          <span>{def.label}</span>
+                        </span>
+                      );
+                    })}
+
+                    {/* Temporal Delay Badge */}
+                    {isDelayed && (
+                      <span
+                        title={`Pipeline transit lag: occurred ${formatDateTime(ev.event_time)}, ingested ${formatDateTime(ev.ingested_at)} (+${ev.delay_seconds}s)`}
+                        className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 cursor-help hover:bg-amber-500/20"
+                      >
+                        <Clock className="w-3 h-3 text-amber-400" />
+                        <span>Pipeline Lag (+{ev.delay_seconds}s)</span>
+                      </span>
+                    )}
+
+                    {/* Out of Order Inversion Badge */}
+                    {isOutOfOrder && (
+                      <span
+                        title="Arrival sequence was out-of-order; chronologically restored via event-time"
+                        className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 cursor-help hover:bg-purple-500/20"
+                      >
+                        <Shuffle className="w-3 h-3 text-purple-400" />
+                        <span>Out-of-Order Inversion</span>
+                      </span>
+                    )}
+
+                    {/* Clock Skew Ambiguous Badge */}
+                    {isAmbiguous && (
+                      <span
+                        title="Timestamp within ±3s of cross-source event (clock-skew tolerance)"
+                        className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-500/10 text-rose-300 border border-rose-500/20 cursor-help hover:bg-rose-500/20"
+                      >
+                        <span>Clock Skew (±3s)</span>
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -249,3 +409,5 @@ export const TimelinePage: React.FC = () => {
     </div>
   );
 };
+
+export default TimelinePage;

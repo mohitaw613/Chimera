@@ -67,9 +67,17 @@ def get_timeline(
     events_records = db.query(Event).filter(Event.investigation_id == investigation_id).all()
     signals = db.query(Signal).filter(Signal.investigation_id == investigation_id).all()
     event_signals_map = {}
+    event_signal_objs_map = {}
     for sig in signals:
         if sig.event_id:
             event_signals_map.setdefault(sig.event_id, []).append(sig.id)
+            event_signal_objs_map.setdefault(sig.event_id, []).append({
+                "id": sig.id,
+                "signal": sig.signal,
+                "reason": sig.reason,
+                "severity": sig.severity,
+                "kind": sig.kind,
+            })
 
     events_data = []
     for ev in events_records:
@@ -87,6 +95,7 @@ def get_timeline(
             "timestamp_status": ev.timestamp_status,
             "delay_seconds": ev.delay_seconds,
             "signal_ids": event_signals_map.get(ev.id, []),
+            "signals": event_signal_objs_map.get(ev.id, []),
         })
 
     result = reconstruct_timeline(events_data, from_time=from_time, to_time=to_time)
@@ -143,8 +152,10 @@ def get_hypotheses(investigation_id: str, db: Session = Depends(get_db)):
             )
         )
 
+    events_by_id = {e.id: e for e in db.query(Event).filter(Event.investigation_id == investigation_id).all()}
     candidate_responses = []
     for c in db_candidates:
+        ev = events_by_id.get(c.event_id)
         candidate_responses.append(
             InitialAccessCandidateResponse(
                 rank=c.rank,
@@ -154,6 +165,9 @@ def get_hypotheses(investigation_id: str, db: Session = Depends(get_db)):
                 evidence_ids=c.evidence_ids or [],
                 caveat=c.caveat,
                 technique=MITRE_MAPPINGS["initial_access"],
+                event_time=ev.event_time if ev else None,
+                source_ip=ev.source_ip if ev else None,
+                target=ev.target or ev.source_device if ev else None,
             )
         )
 

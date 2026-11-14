@@ -48,6 +48,14 @@ class EventsListResponse(BaseModel):
     page_size: int
 
 
+class TimelineSignal(BaseModel):
+    id: str
+    signal: str
+    reason: str
+    severity: str
+    kind: str
+
+
 class TimelineEvent(BaseModel):
     id: str
     event_time: Optional[datetime] = None
@@ -63,6 +71,7 @@ class TimelineEvent(BaseModel):
     primary_flag: str
     ordering_ambiguous: bool
     signal_ids: List[str] = []
+    signals: List[TimelineSignal] = []
 
 
 class TimelineResponse(BaseModel):

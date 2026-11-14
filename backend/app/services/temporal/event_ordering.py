@@ -90,6 +90,7 @@ def reconstruct_timeline(
                 "primary_flag": FLAG_TIMESTAMP_UNCERTAIN,
                 "ordering_ambiguous": False,
                 "signal_ids": ev.get("signal_ids", []),
+                "signals": ev.get("signals", []),
             })
             continue
 
@@ -192,6 +193,7 @@ def reconstruct_timeline(
             "primary_flag": primary_flag,
             "ordering_ambiguous": ordering_ambiguous,
             "signal_ids": ev.get("signal_ids", []),
+            "signals": ev.get("signals", []),
         })
 
     return {

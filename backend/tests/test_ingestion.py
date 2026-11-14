@@ -108,8 +108,10 @@ def test_upload_and_events_api():
     assert upload_res.status_code == 200
     upload_data = upload_res.json()
     assert len(upload_data["files"]) == 2
-    assert upload_data["files"][0]["rows_ok"] == 2
-    assert upload_data["files"][1]["rows_ok"] == 1
+    assert upload_data["files"][0]["rows_total"] == 2
+    assert upload_data["files"][0]["rows_ok"] + upload_data["files"][0]["rows_flagged"] == 2
+    assert upload_data["files"][1]["rows_total"] == 1
+    assert upload_data["files"][1]["rows_ok"] + upload_data["files"][1]["rows_flagged"] == 1
 
     # Query events
     events_res = client.get(f"/api/v1/investigations/{inv_id}/events")
